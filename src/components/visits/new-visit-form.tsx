@@ -1,0 +1,126 @@
+"use client";
+
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
+import { createVisit, type CreateVisitState } from "@/app/dashboard/visits/actions";
+
+const initialState: CreateVisitState = {};
+
+interface Option {
+  id: string;
+  name: string;
+}
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-fit rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-zinc-800 disabled:opacity-60 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+    >
+      {pending ? "Creating…" : "Create visit"}
+    </button>
+  );
+}
+
+export function NewVisitForm({
+  patientId,
+  visitTypes,
+  doctors,
+}: {
+  patientId: string;
+  visitTypes: Option[];
+  doctors: Option[];
+}) {
+  const action = createVisit.bind(null, patientId);
+  const [state, formAction] = useActionState(action, initialState);
+
+  return (
+    <form action={formAction} className="flex max-w-lg flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="visitTypeId" className="text-sm font-medium">
+          Visit type
+        </label>
+        <select
+          id="visitTypeId"
+          name="visitTypeId"
+          required
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
+        >
+          <option value="">Choose a visit type</option>
+          {visitTypes.map((vt) => (
+            <option key={vt.id} value={vt.id}>
+              {vt.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="doctorId" className="text-sm font-medium">
+          Doctor
+        </label>
+        <select
+          id="doctorId"
+          name="doctorId"
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
+        >
+          <option value="">Not specified</option>
+          {doctors.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="feeAmount" className="text-sm font-medium">
+          Fee amount (₹)
+        </label>
+        <input
+          id="feeAmount"
+          name="feeAmount"
+          type="number"
+          min={0}
+          step="0.01"
+          defaultValue={0}
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="followUpDate" className="text-sm font-medium">
+          Follow-up date
+        </label>
+        <input
+          id="followUpDate"
+          name="followUpDate"
+          type="date"
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="notes" className="text-sm font-medium">
+          Notes
+        </label>
+        <textarea
+          id="notes"
+          name="notes"
+          rows={3}
+          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
+        />
+      </div>
+
+      {state.error ? (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {state.error}
+        </p>
+      ) : null}
+
+      <SubmitButton />
+    </form>
+  );
+}

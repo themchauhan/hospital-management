@@ -155,6 +155,28 @@ async function main() {
     });
     if (receptionistProfileError) throw receptionistProfileError;
 
+    const doctorNames = [`Dr. Demo Physician (${hospitalSeed.name})`];
+    const { error: doctorsError } = await supabase
+      .from("doctors")
+      .insert(doctorNames.map((name) => ({ hospital_id: hospital.id, name })));
+    if (doctorsError) throw doctorsError;
+
+    const visitTypes: { module: ModuleType; name: string }[] = [];
+    if (hospitalSeed.modules.includes("GENERAL_OPD")) {
+      visitTypes.push({ module: "GENERAL_OPD", name: "OPD Consultation" });
+    }
+    if (hospitalSeed.modules.includes("USG")) {
+      visitTypes.push(
+        { module: "USG", name: "General USG" },
+        { module: "USG", name: "Abdomen & Pelvis" },
+        { module: "USG", name: "Pregnancy/Obstetric USG" },
+      );
+    }
+    const { error: visitTypesError } = await supabase
+      .from("visit_types")
+      .insert(visitTypes.map((vt) => ({ hospital_id: hospital.id, ...vt })));
+    if (visitTypesError) throw visitTypesError;
+
     if (hospitalSeed.name === "Sunrise General Hospital") {
       // A pre-deactivated account, for exercising the "deactivated
       // staff cannot log in" path (Phase 1c) without needing a live

@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { requireRole } from "@/lib/auth/guards";
 import { getMfaStatus } from "@/lib/auth/mfa";
+import { safeNextPath } from "@/lib/auth/safe-redirect";
 
 /**
  * Shared by every /dashboard/* route: tenant-role gate + MFA gate, so
@@ -11,10 +13,16 @@ import { getMfaStatus } from "@/lib/auth/mfa";
  * HOSPITAL_ADMIN-only check on top of this.
  */
 export default async function DashboardLayout({ children }: LayoutProps<"/dashboard">) {
+  // The actual requested path (e.g. /dashboard/patients/new), set by
+  // middleware.ts — not just "/dashboard" — so completing the MFA gate
+  // below returns the user to the page they asked for, not the
+  // dashboard root every time.
+  const requestedPath = safeNextPath((await headers()).get("x-pathname")) ?? "/dashboard";
+
   const profile = await getSessionProfile();
 
   if (!profile) {
-    redirect("/login?next=/dashboard");
+    redirect(`/login?next=${encodeURIComponent(requestedPath)}`);
   }
   if (profile.isPlatformAdmin) {
     redirect("/admin");
@@ -23,10 +31,10 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
 
   const mfaStatus = await getMfaStatus(profile.role);
   if (mfaStatus === "enroll_required") {
-    redirect("/mfa/setup?next=/dashboard");
+    redirect(`/mfa/setup?next=${encodeURIComponent(requestedPath)}`);
   }
   if (mfaStatus === "challenge_required") {
-    redirect("/mfa/verify?next=/dashboard");
+    redirect(`/mfa/verify?next=${encodeURIComponent(requestedPath)}`);
   }
 
   return children;

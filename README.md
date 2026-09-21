@@ -7,7 +7,8 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **2 — patient records**.
+[`docs/phases/`](docs/phases). Current phase: **3 — visits, visit
+types, payments**.
 
 ## Tech stack
 
@@ -180,7 +181,29 @@ ON CONFLICT DO UPDATE`) — safe under concurrent registrations, see
 - No hard deletes: `patients.deleted_at` exists but nothing sets it
   yet; there's no DELETE policy on the table at all.
 
+## Visits & payments (Phase 3)
+
+- `visits`/`visit_types`/`doctors` follow the same composite-FK
+  pattern patients established: `(patient_id, hospital_id)`,
+  `(visit_type_id, hospital_id)`, `(doctor_id, hospital_id)` all
+  reference the target table's `(id, hospital_id)` pair, so a visit
+  can never point at another hospital's patient/visit type/doctor even
+  from a bug in application code.
+- `visits.visit_number` is a per-hospital sequence (same atomic
+  pattern as `patient_code`), used on the printable OPD slip
+  (`/dashboard/visits/[id]/slip`, opens in a new tab, hides the nav
+  via Tailwind's `print:` variant).
+- Payment status (UNPAID/PARTIAL/PAID) is derived at read time from
+  `sum(visit_payments.amount) vs. visits.fee_amount` — never stored.
+  Corrections are a separate `is_reversal = true` row with a negative
+  amount, insertable only by HOSPITAL_ADMIN (RLS-enforced); no
+  UPDATE/DELETE policy exists on `visit_payments` at all.
+- `dashboard/layout.tsx` threads the actual requested path through
+  `x-pathname` (set in `middleware.ts`) so the MFA gate returns the
+  user to the page they asked for, not always `/dashboard` — a real
+  bug caught by an e2e test rather than a hand-wave.
+
 ## Deployment notes
 
 Not yet configured — deployment to Vercel (Mumbai/`bom1` region) lands
-once more of the core visit/document workflow exists (Phase 3+).
+once more of the core document workflow exists (Phase 4+).

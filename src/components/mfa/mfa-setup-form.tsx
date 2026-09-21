@@ -18,15 +18,34 @@ export function MfaSetupForm({ next }: { next: string }) {
     const supabase = createClient();
 
     async function start() {
-      // Clear out any abandoned unverified factor(s) from a previous
-      // attempt first — enroll() can't re-display a secret once
-      // issued, so a stale factor would leave the QR/secret shown
-      // here out of sync with what's actually pending server-side.
-      // (`.totp` on the list response is typed as verified-only, so
-      // unverified factors are found via `.all` instead.) This also
-      // guards against a duplicate-friendly-name enroll() failure if
-      // a previous attempt's cleanup didn't complete.
       const { data: existing } = await supabase.auth.mfa.listFactors();
+
+      // A verified factor already existing means MFA is already
+      // satisfied for this account — this happens when the browser
+      // lands back on /mfa/setup immediately after completing
+      // enrollment: challengeAndVerify() promotes the client-side
+      // session to aal2 right away, but the very next server-rendered
+      // page reads the session from a cookie that can be a beat
+      // behind, so getMfaStatus() briefly still sees "enroll
+      // required" and redirects here again. Move on instead of
+      // enrolling a duplicate, which Supabase would reject anyway (it
+      // enforces one factor per friendly name — empty string, here —
+      // per user).
+      const verified = existing?.all.find(
+        (f) => f.factor_type === "totp" && f.status === "verified",
+      );
+      if (verified) {
+        if (!cancelled) {
+          router.replace(next);
+          router.refresh();
+        }
+        return;
+      }
+
+      // Clear out any abandoned unverified factor from a previous
+      // attempt — enroll() can't re-display a secret once issued, so
+      // a stale factor would leave the QR/secret shown here out of
+      // sync with what's actually pending server-side.
       const staleFactors =
         existing?.all.filter((f) => f.factor_type === "totp" && f.status === "unverified") ?? [];
       for (const stale of staleFactors) {
@@ -34,13 +53,7 @@ export function MfaSetupForm({ next }: { next: string }) {
       }
       if (cancelled) return;
 
-      const { data, error: enrollError } = await supabase.auth.mfa.enroll({
-        factorType: "totp",
-        // No friendlyName: letting Supabase assign one avoids a
-        // "factor with this friendly name already exists" enroll
-        // failure if cleanup above raced with another attempt (e.g.
-        // React Strict Mode's double effect invocation in dev).
-      });
+      const { data, error: enrollError } = await supabase.auth.mfa.enroll({ factorType: "totp" });
       if (cancelled) return;
       if (enrollError || !data) {
         setError(enrollError?.message ?? "Could not start MFA setup.");
@@ -55,6 +68,7 @@ export function MfaSetupForm({ next }: { next: string }) {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount; `next`/`router` don't change in a way that should re-trigger enrollment.
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {

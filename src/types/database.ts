@@ -3,17 +3,23 @@
 // once `supabase start` has been run, then diff against this file —
 // the generated output is the source of truth from that point on.
 //
-// `Relationships: []` on every table is required by
-// @supabase/supabase-js's GenericTable shape even though we don't use
-// PostgREST's embedded-resource (`select("*, other_table(*)")`)
-// feature here — an empty array is the structurally correct value for
-// "no declared foreign-key relationships to embed".
+// `Relationships` is required by @supabase/supabase-js's GenericTable
+// shape. Tables with no embedded-resource query anywhere in the app
+// keep it `[]` (structurally correct for "nothing to embed"); tables
+// that ARE embedded (e.g. `.select("*, patients(...)")`) need a real
+// entry matching the actual FK columns, or the embed doesn't type-check
+// at all (falls back to a `SelectQueryError` type) — see visits/
+// visit_payments below, which use the composite (foo_id, hospital_id)
+// FKs from the Phase 2/3 migrations, not just a bare id column.
 
 export type HospitalStatus = "TRIAL" | "ACTIVE" | "SUSPENDED" | "EXPIRED";
 export type ModuleType = "GENERAL_OPD" | "USG";
 export type StaffRole = "SUPER_ADMIN" | "HOSPITAL_ADMIN" | "RECEPTIONIST";
 export type ProfileStatus = "ACTIVE" | "INACTIVE";
 export type PatientGender = "MALE" | "FEMALE" | "OTHER";
+export type VisitStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
+export type PaymentMode = "CASH" | "UPI" | "CARD" | "OTHER";
+export type PaymentStatus = "UNPAID" | "PARTIAL" | "PAID";
 
 export interface Database {
   public: {
@@ -140,6 +146,123 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["patient_code_counters"]["Row"]>;
         Relationships: [];
       };
+      doctors: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          name: string;
+          profile_id: string | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["doctors"]["Row"]> & { name: string };
+        Update: Partial<Database["public"]["Tables"]["doctors"]["Row"]>;
+        Relationships: [];
+      };
+      visit_types: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          module: ModuleType;
+          name: string;
+          description: string | null;
+          active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["visit_types"]["Row"]> & {
+          module: ModuleType;
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["visit_types"]["Row"]>;
+        Relationships: [];
+      };
+      visit_counters: {
+        Row: { hospital_id: string; next_number: number };
+        Insert: Partial<Database["public"]["Tables"]["visit_counters"]["Row"]> & {
+          hospital_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["visit_counters"]["Row"]>;
+        Relationships: [];
+      };
+      visits: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          visit_number: number;
+          patient_id: string;
+          visit_type_id: string;
+          doctor_id: string | null;
+          visit_date: string;
+          notes: string | null;
+          status: VisitStatus;
+          fee_amount: number;
+          follow_up_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        // hospital_id and visit_number both default at the database
+        // level, so neither is required here (same as patients).
+        Insert: Partial<Database["public"]["Tables"]["visits"]["Row"]> & {
+          patient_id: string;
+          visit_type_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["visits"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "visits_patient_id_hospital_id_fkey";
+            columns: ["patient_id", "hospital_id"];
+            referencedRelation: "patients";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            foreignKeyName: "visits_visit_type_id_hospital_id_fkey";
+            columns: ["visit_type_id", "hospital_id"];
+            referencedRelation: "visit_types";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            foreignKeyName: "visits_doctor_id_hospital_id_fkey";
+            columns: ["doctor_id", "hospital_id"];
+            referencedRelation: "doctors";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+        ];
+      };
+      visit_payments: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          visit_id: string;
+          amount: number;
+          mode: PaymentMode;
+          received_by: string;
+          received_at: string;
+          note: string | null;
+          is_reversal: boolean;
+          created_at: string;
+        };
+        // received_by defaults to auth.uid() at the database level.
+        Insert: Partial<Database["public"]["Tables"]["visit_payments"]["Row"]> & {
+          visit_id: string;
+          amount: number;
+          mode: PaymentMode;
+        };
+        Update: Partial<Database["public"]["Tables"]["visit_payments"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "visit_payments_visit_id_hospital_id_fkey";
+            columns: ["visit_id", "hospital_id"];
+            referencedRelation: "visits";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -159,6 +282,10 @@ export interface Database {
       next_patient_code: {
         Args: Record<string, never>;
         Returns: string;
+      };
+      next_visit_number: {
+        Args: Record<string, never>;
+        Returns: number;
       };
       search_patients: {
         Args: { p_query: string };

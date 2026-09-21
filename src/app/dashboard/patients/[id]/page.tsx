@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { derivePaymentStatus, sumPayments } from "@/lib/visits/payment-status";
 
 export const metadata: Metadata = { title: "Patient — Hospital & USG Records" };
 
@@ -29,6 +30,15 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
   if (!patient) {
     notFound();
   }
+
+  const { data: visits } = await supabase
+    .from("visits")
+    .select(
+      "id, visit_number, visit_date, status, fee_amount, visit_types(name), visit_payments(amount)",
+    )
+    .eq("patient_id", patient.id)
+    .order("visit_date", { ascending: false })
+    .order("visit_number", { ascending: false });
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-16 sm:px-6">
@@ -65,10 +75,51 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
       </dl>
 
       <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
-        <h2 className="text-lg font-semibold">Visits</h2>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          Visit history is built out in Phase 3.
-        </p>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Visits</h2>
+          <Link
+            href={`/dashboard/patients/${patient.id}/visits/new`}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          >
+            New visit
+          </Link>
+        </div>
+
+        {visits && visits.length > 0 ? (
+          <table className="mt-4 w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                <th className="py-2 font-medium">Date</th>
+                <th className="py-2 font-medium">Visit</th>
+                <th className="py-2 font-medium">Type</th>
+                <th className="py-2 font-medium">Payment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visits.map((v) => {
+                const amountPaid = sumPayments(v.visit_payments);
+                const status = derivePaymentStatus(Number(v.fee_amount), amountPaid);
+                return (
+                  <tr
+                    key={v.id}
+                    className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
+                  >
+                    <td className="py-2 text-zinc-600 dark:text-zinc-400">{v.visit_date}</td>
+                    <td className="py-2">
+                      <Link href={`/dashboard/visits/${v.id}`} className="hover:underline">
+                        #{v.visit_number}
+                      </Link>
+                    </td>
+                    <td className="py-2">{v.visit_types!.name}</td>
+                    <td className="py-2 text-zinc-600 dark:text-zinc-400">{status}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">No visits yet.</p>
+        )}
       </div>
 
       <div className="mt-8">

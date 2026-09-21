@@ -18,6 +18,12 @@ function isPublicPath(pathname: string) {
  * signed-out visitor before that check runs.
  */
 export async function updateSession(request: NextRequest) {
+  // Exposed to Server Components via headers() so a layout that needs
+  // to redirect through an intermediate step (e.g. the MFA gate in
+  // dashboard/layout.tsx) can send the user back to the page they
+  // actually asked for, not a hardcoded fallback.
+  request.headers.set("x-pathname", request.nextUrl.pathname);
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(

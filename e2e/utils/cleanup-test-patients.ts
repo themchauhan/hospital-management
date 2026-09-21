@@ -9,6 +9,11 @@ import { createClient } from "@supabase/supabase-js";
  * that expects a clean create. Hard-deletes here (service-role,
  * outside the app) are fine for disposable test fixtures; the app
  * itself never hard-deletes patients (hard rule #6).
+ *
+ * Cascades through visit_payments -> visits -> patients: the
+ * patients<-visits FK is ON DELETE RESTRICT (Phase 3), so deleting a
+ * patient that already has visits attached (from a spec that creates
+ * both, e.g. visits.spec.ts) would otherwise fail outright.
  */
 export async function cleanupTestPatients(namePrefix: string): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,5 +26,20 @@ export async function cleanupTestPatients(namePrefix: string): Promise<void> {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  await supabase.from("patients").delete().ilike("name", `${namePrefix}%`);
+  const { data: patients } = await supabase
+    .from("patients")
+    .select("id")
+    .ilike("name", `${namePrefix}%`);
+  const patientIds = (patients ?? []).map((p) => p.id);
+  if (patientIds.length === 0) return;
+
+  const { data: visits } = await supabase.from("visits").select("id").in("patient_id", patientIds);
+  const visitIds = (visits ?? []).map((v) => v.id);
+
+  if (visitIds.length > 0) {
+    await supabase.from("visit_payments").delete().in("visit_id", visitIds);
+    await supabase.from("visits").delete().in("id", visitIds);
+  }
+
+  await supabase.from("patients").delete().in("id", patientIds);
 }

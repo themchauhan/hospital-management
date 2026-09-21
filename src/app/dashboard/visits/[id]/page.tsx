@@ -1,0 +1,128 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getSessionProfile } from "@/lib/auth/session";
+import { derivePaymentStatus, sumPayments } from "@/lib/visits/payment-status";
+import { PaymentForm } from "@/components/visits/payment-form";
+import { ReversalForm } from "@/components/visits/reversal-form";
+
+export const metadata: Metadata = { title: "Visit — Hospital & USG Records" };
+
+const STATUS_LABELS = { UNPAID: "Unpaid", PARTIAL: "Partially paid", PAID: "Paid" } as const;
+
+export default async function VisitDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const profile = await getSessionProfile();
+
+  const { data: visit } = await supabase
+    .from("visits")
+    .select(
+      "*, patients(id, name, patient_code), visit_types(name), doctors(name), visit_payments(id, amount, mode, note, is_reversal, received_at)",
+    )
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!visit) {
+    notFound();
+  }
+
+  const amountPaid = sumPayments(visit.visit_payments);
+  const balanceDue = Math.max(0, Number(visit.fee_amount) - amountPaid);
+  const status = derivePaymentStatus(Number(visit.fee_amount), amountPaid);
+
+  return (
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-16 sm:px-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            <Link href={`/dashboard/patients/${visit.patients!.id}`} className="hover:underline">
+              {visit.patients!.name} ({visit.patients!.patient_code})
+            </Link>
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+            Visit #{visit.visit_number} — {visit.visit_types!.name}
+          </h1>
+        </div>
+        <Link
+          href={`/dashboard/visits/${visit.id}/slip`}
+          target="_blank"
+          className="rounded-md border border-zinc-300 px-4 py-2 text-sm transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        >
+          Print slip
+        </Link>
+      </div>
+
+      <dl className="mt-8 grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
+        <dt className="text-zinc-500 dark:text-zinc-400">Date</dt>
+        <dd>{visit.visit_date}</dd>
+
+        <dt className="text-zinc-500 dark:text-zinc-400">Doctor</dt>
+        <dd>{visit.doctors?.name ?? "—"}</dd>
+
+        <dt className="text-zinc-500 dark:text-zinc-400">Status</dt>
+        <dd>{visit.status}</dd>
+
+        <dt className="text-zinc-500 dark:text-zinc-400">Follow-up</dt>
+        <dd>{visit.follow_up_date ?? "—"}</dd>
+
+        <dt className="text-zinc-500 dark:text-zinc-400">Notes</dt>
+        <dd>{visit.notes ?? "—"}</dd>
+      </dl>
+
+      <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-lg font-semibold">Payment</h2>
+          <span className="text-sm text-zinc-500 dark:text-zinc-400">
+            {STATUS_LABELS[status]} — ₹{amountPaid.toFixed(2)} of ₹
+            {Number(visit.fee_amount).toFixed(2)}
+          </span>
+        </div>
+
+        {visit.visit_payments.length > 0 ? (
+          <table className="mt-4 w-full max-w-lg text-left text-sm">
+            <thead>
+              <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                <th className="py-2 font-medium">When</th>
+                <th className="py-2 font-medium">Amount</th>
+                <th className="py-2 font-medium">Mode</th>
+                <th className="py-2 font-medium">Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visit.visit_payments.map((p) => (
+                <tr
+                  key={p.id}
+                  className="border-b border-zinc-100 last:border-0 dark:border-zinc-900"
+                >
+                  <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                    {new Date(p.received_at).toLocaleString()}
+                  </td>
+                  <td className={p.is_reversal ? "py-2 text-red-600 dark:text-red-400" : "py-2"}>
+                    ₹{Number(p.amount).toFixed(2)}
+                  </td>
+                  <td className="py-2">{p.mode}</td>
+                  <td className="py-2 text-zinc-600 dark:text-zinc-400">{p.note ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
+
+        <div className="mt-6">
+          <PaymentForm visitId={visit.id} balanceDue={balanceDue} />
+        </div>
+
+        {profile?.role === "HOSPITAL_ADMIN" ? (
+          <div className="mt-6 border-t border-zinc-100 pt-6 dark:border-zinc-900">
+            <p className="mb-3 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              Correction (admin only)
+            </p>
+            <ReversalForm visitId={visit.id} />
+          </div>
+        ) : null}
+      </div>
+    </main>
+  );
+}

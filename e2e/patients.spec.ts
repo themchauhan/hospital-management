@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { cleanupTestPatients } from "./utils/cleanup-test-patients";
+import { createPatientViaUi } from "./utils/create-patient";
 
 const DEMO_PASSWORD = "demo-password-123!";
 const RECEPTIONIST_EMAIL = "reception@sunrise.test";
@@ -27,12 +28,8 @@ test("create a patient, find them by name/mobile/code, then edit them", async ({
   const name = `E2E Test Patient ${unique}`;
   const mobile = `9${String(unique).slice(-9)}`;
 
-  await page.goto("/dashboard/patients/new");
-  await page.getByLabel("Name", { exact: true }).fill(name);
-  await page.getByLabel("Mobile").fill(mobile);
-  await page.getByRole("button", { name: "Create patient" }).click();
+  await createPatientViaUi(page, { name, mobile });
 
-  await expect(page).toHaveURL(/\/dashboard\/patients\/[0-9a-f-]+$/);
   await expect(page.getByRole("heading", { name })).toBeVisible();
   const patientCode = await page.locator("p.font-mono").first().textContent();
   expect(patientCode).toMatch(/^\d{6}$/);

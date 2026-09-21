@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Printable pages (e.g. the OPD slip) should always print on a plain
+   white background with black text, regardless of the OS's dark mode
+   preference — dark:* Tailwind classes elsewhere are otherwise still
+   in effect during print. */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
