@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionProfile } from "@/lib/auth/session";
 import { requireRole } from "@/lib/auth/guards";
+import { getMfaStatus } from "@/lib/auth/mfa";
 
 export const metadata: Metadata = { title: "Platform admin — Hospital & USG Records" };
 
@@ -16,6 +17,14 @@ export default async function AdminPage() {
   }
 
   requireRole(profile, ["SUPER_ADMIN"]);
+
+  const mfaStatus = await getMfaStatus(profile.role);
+  if (mfaStatus === "enroll_required") {
+    redirect("/mfa/setup?next=/admin");
+  }
+  if (mfaStatus === "challenge_required") {
+    redirect("/mfa/verify?next=/admin");
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-16 sm:px-6">

@@ -10,9 +10,13 @@ describe("profiles RLS", () => {
     for (const row of data ?? []) {
       expect(row.hospital_id).toBe(await hospitalIdByName("Sunrise General Hospital"));
     }
-    const emails = (data ?? []).map((row) => row.email).sort();
+    // Not an exact-membership check: seed.ts adds accounts over time
+    // (e.g. the deactivated demo user in Phase 1c), and this test only
+    // needs to prove the known accounts are visible and nothing from
+    // another hospital leaks in (checked above via hospital_id).
+    const emails = (data ?? []).map((row) => row.email);
     expect(emails).toEqual(
-      [SEED_ACCOUNTS.sunrise.admin, SEED_ACCOUNTS.sunrise.receptionist].sort(),
+      expect.arrayContaining([SEED_ACCOUNTS.sunrise.admin, SEED_ACCOUNTS.sunrise.receptionist]),
     );
   });
 

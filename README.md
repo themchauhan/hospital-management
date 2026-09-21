@@ -7,8 +7,8 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **1b — auth, roles, RLS,
-tenant guard, audit foundation**.
+[`docs/phases/`](docs/phases). Current phase: **1c — super admin
+provisioning, staff invites, MFA**.
 
 ## Tech stack
 
@@ -65,16 +65,38 @@ Open [http://localhost:3000](http://localhost:3000) and sign in at
 `/login` with any seeded account (see `scripts/seed.ts` for the full
 list — all share the password `demo-password-123!`):
 
-| Email                    | Role           | Centre                                   |
-| ------------------------ | -------------- | ---------------------------------------- |
-| `super@platform.test`    | SUPER_ADMIN    | — (platform admin)                       |
-| `admin@sunrise.test`     | HOSPITAL_ADMIN | Sunrise General Hospital (GENERAL_OPD)   |
-| `reception@sunrise.test` | RECEPTIONIST   | Sunrise General Hospital                 |
-| `admin@clarity.test`     | HOSPITAL_ADMIN | Clarity Diagnostics (USG)                |
-| `admin@wellspring.test`  | HOSPITAL_ADMIN | Wellspring Multispecialty (both modules) |
+| Email                      | Role                       | Centre                                   |
+| -------------------------- | -------------------------- | ---------------------------------------- |
+| `super@platform.test`      | SUPER_ADMIN                | — (platform admin)                       |
+| `admin@sunrise.test`       | HOSPITAL_ADMIN             | Sunrise General Hospital (GENERAL_OPD)   |
+| `reception@sunrise.test`   | RECEPTIONIST               | Sunrise General Hospital                 |
+| `admin@clarity.test`       | HOSPITAL_ADMIN             | Clarity Diagnostics (USG)                |
+| `admin@wellspring.test`    | HOSPITAL_ADMIN             | Wellspring Multispecialty (both modules) |
+| `deactivated@sunrise.test` | RECEPTIONIST (deactivated) | Sunrise General Hospital                 |
+
+SUPER_ADMIN and HOSPITAL_ADMIN accounts require two-factor
+authentication (Phase 1c) — the first sign-in for each of those
+seeded accounts prompts MFA enrollment (scan the QR with any TOTP
+authenticator app). RECEPTIONIST accounts don't require it.
 
 Never commit `.env.local` or paste real Supabase secrets into a
 prompt — see `CLAUDE.md` hard rule #5 on dummy data only.
+
+### Provisioning the first SUPER_ADMIN (outside of seeding)
+
+There's no signup route. A platform admin is always created by an
+operator running:
+
+```bash
+npm run provision:super-admin -- --email you@example.com --name "Your Name"
+```
+
+This sends a Supabase invite email (check
+[http://127.0.0.1:54324](http://127.0.0.1:54324) locally) so the
+operator sets their own password — the script never generates or
+prints one. `scripts/seed.ts` already provisions one demo platform
+admin (`super@platform.test`), so you normally only need this for a
+second platform admin or against a non-local project.
 
 ## Local Supabase
 
@@ -90,20 +112,21 @@ Migrations live in `supabase/migrations/`. After changing one, run
 
 ## Scripts
 
-| Command                    | Purpose                                                                        |
-| -------------------------- | ------------------------------------------------------------------------------ |
-| `npm run dev`              | Start the Next.js dev server                                                   |
-| `npm run build`            | Production build (also type-checks)                                            |
-| `npm run start`            | Run the production build                                                       |
-| `npm run lint`             | ESLint                                                                         |
-| `npm run typecheck`        | `tsc --noEmit`                                                                 |
-| `npm run format`           | Prettier, writes changes                                                       |
-| `npm run format:check`     | Prettier, check only (used in CI)                                              |
-| `npm test`                 | Vitest unit tests + RLS integration tests (needs `supabase start` + `db:seed`) |
-| `npm run test:watch`       | Vitest in watch mode                                                           |
-| `npm run e2e`              | Playwright e2e tests (builds and boots the app first)                          |
-| `npm run db:seed`          | Seed dummy hospitals/staff into the local Supabase instance                    |
-| `npm run check:no-secrets` | Grep the built client bundle for a leaked service-role key                     |
+| Command                         | Purpose                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| `npm run dev`                   | Start the Next.js dev server                                                   |
+| `npm run build`                 | Production build (also type-checks)                                            |
+| `npm run start`                 | Run the production build                                                       |
+| `npm run lint`                  | ESLint                                                                         |
+| `npm run typecheck`             | `tsc --noEmit`                                                                 |
+| `npm run format`                | Prettier, writes changes                                                       |
+| `npm run format:check`          | Prettier, check only (used in CI)                                              |
+| `npm test`                      | Vitest unit tests + RLS integration tests (needs `supabase start` + `db:seed`) |
+| `npm run test:watch`            | Vitest in watch mode                                                           |
+| `npm run e2e`                   | Playwright e2e tests (builds and boots the app first)                          |
+| `npm run db:seed`               | Seed dummy hospitals/staff into the local Supabase instance                    |
+| `npm run provision:super-admin` | Invite a new SUPER_ADMIN (`-- --email ... --name ...`)                         |
+| `npm run check:no-secrets`      | Grep the built client bundle for a leaked service-role key                     |
 
 Playwright browsers must be installed once per machine:
 
@@ -122,17 +145,21 @@ the Playwright e2e suite against a seeded local Supabase instance too.
 
 ```
 src/app/            Next.js App Router routes, layouts, error/404 pages,
-                     auth routes (login, forgot/reset password, dashboard, admin)
+                     auth routes (login, forgot/reset password), dashboard
+                     (incl. /dashboard/staff), admin, MFA setup/verify
 src/components/      Shared UI components
-src/lib/supabase/    Supabase clients: user-session (server.ts), the one
-                     service-role client (service-role.ts), middleware helper
-src/lib/auth/        getSessionProfile(), requireRole(), requireActiveTenant()
+src/lib/supabase/    Supabase clients: user-session (server.ts), browser
+                     (client.ts, MFA only), the one service-role client
+                     (service-role.ts), middleware helper
+src/lib/auth/        getSessionProfile(), requireRole(), requireActiveTenant(),
+                     getMfaStatus()
 src/lib/audit/       logAudit() helper
 src/types/           Hand-authored Database type (see file header re: regenerating)
 docs/BRIEF.md        Full product spec
 docs/phases/         Phase-by-phase task lists and acceptance criteria
 supabase/            Migrations, config, email templates
-scripts/seed.ts      Dev-only dummy data seeding (service-role, run via tsx)
+scripts/seed.ts                  Dev-only dummy data seeding (service-role, via tsx)
+scripts/provision-super-admin.ts Operator-run first-SUPER_ADMIN provisioning
 tests/rls/           RLS integration tests, run against a real local Postgres
 e2e/                 Playwright e2e tests
 ```
@@ -140,4 +167,4 @@ e2e/                 Playwright e2e tests
 ## Deployment notes
 
 Not yet configured — deployment to Vercel (Mumbai/`bom1` region) lands
-once staff invites (Phase 1c) and more of the core workflow exist.
+once more of the core patient/visit workflow exists (Phase 2+).

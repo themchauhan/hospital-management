@@ -1,0 +1,14 @@
+<h2>You've been invited</h2>
+
+<p>
+  Your centre administrator has set up an account for you at {{ .SiteURL }}. Follow this link to set
+  your password:
+</p>
+
+<p>
+  <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/reset-password"
+    >Set your password</a
+  >
+</p>
+
+<p>This link can only be used once.</p>

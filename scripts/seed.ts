@@ -155,6 +155,25 @@ async function main() {
     });
     if (receptionistProfileError) throw receptionistProfileError;
 
+    if (hospitalSeed.name === "Sunrise General Hospital") {
+      // A pre-deactivated account, for exercising the "deactivated
+      // staff cannot log in" path (Phase 1c) without needing a live
+      // admin session to deactivate one first.
+      const deactivatedUser = await createAuthUser(
+        "deactivated@sunrise.test",
+        "Demo Deactivated (Sunrise)",
+      );
+      const { error: deactivatedProfileError } = await supabase.from("profiles").insert({
+        id: deactivatedUser.id,
+        hospital_id: hospital.id,
+        name: "Demo Deactivated (Sunrise)",
+        email: "deactivated@sunrise.test",
+        role: "RECEPTIONIST",
+        status: "INACTIVE",
+      });
+      if (deactivatedProfileError) throw deactivatedProfileError;
+    }
+
     console.log(
       `${hospitalSeed.name.padEnd(15)}: admin=${hospitalSeed.admin.email}  receptionist=${hospitalSeed.receptionist.email}`,
     );

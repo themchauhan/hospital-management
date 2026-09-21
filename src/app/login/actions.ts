@@ -19,10 +19,25 @@ export async function signIn(_prevState: LoginState, formData: FormData): Promis
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error, data } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return { error: "Incorrect email or password." };
+  }
+
+  // Password auth alone doesn't know about our own deactivation flag
+  // (Phase 1c) — check it explicitly so a deactivated account gets a
+  // clear reason rather than the generic "not set up" message below.
+  // They already proved they know the password, so naming the real
+  // reason here isn't an account-enumeration risk.
+  const { data: statusRow } = await supabase
+    .from("profiles")
+    .select("status")
+    .eq("id", data.user.id)
+    .maybeSingle();
+  if (statusRow?.status === "INACTIVE") {
+    await supabase.auth.signOut();
+    return { error: "This account has been deactivated. Contact your centre administrator." };
   }
 
   const profile = await getSessionProfile();
