@@ -5,13 +5,24 @@ import { fileURLToPath } from "node:url";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// tests/rls/*.test.ts need NEXT_PUBLIC_SUPABASE_URL etc. to reach the
+// local Supabase instance. CI provides these via $GITHUB_ENV; locally
+// they come from .env.local, which plain `vitest run` doesn't load on
+// its own the way Next.js does.
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // No .env.local yet (e.g. fresh clone before `supabase start`) —
+  // tests/rls/* will report a clear "not configured" failure instead.
+}
+
 export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["src/**/*.test.{ts,tsx}", "tests/**/*.test.{ts,tsx}"],
     exclude: ["e2e/**", "node_modules/**"],
   },
   resolve: {

@@ -1,0 +1,15 @@
+<h2>Reset your password</h2>
+
+<p>
+  Someone requested a password reset for your account at {{ .SiteURL }}. If this wasn't you, ignore
+  this email.
+</p>
+
+<p>
+  <a
+    href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password"
+    >Reset your password</a
+  >
+</p>
+
+<p>This link expires in 1 hour and can only be used once.</p>

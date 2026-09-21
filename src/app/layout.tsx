@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NavShell } from "@/components/nav-shell";
+import { getSessionProfile } from "@/lib/auth/session";
+import { signOut } from "@/app/login/actions";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,11 +20,24 @@ export const metadata: Metadata = {
   description: "Digital patient records for small hospitals and USG centres.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const profile = await getSessionProfile();
+
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-white text-zinc-950 dark:bg-black dark:text-zinc-50">
-        <NavShell />
+        <NavShell
+          session={
+            profile
+              ? {
+                  email: profile.email,
+                  role: profile.role,
+                  hospitalName: profile.hospital?.name ?? null,
+                }
+              : null
+          }
+          onSignOut={signOut}
+        />
         <div className="flex flex-1 flex-col">{children}</div>
       </body>
     </html>
