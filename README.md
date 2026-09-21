@@ -7,8 +7,7 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **1c — super admin
-provisioning, staff invites, MFA**.
+[`docs/phases/`](docs/phases). Current phase: **2 — patient records**.
 
 ## Tech stack
 
@@ -146,7 +145,8 @@ the Playwright e2e suite against a seeded local Supabase instance too.
 ```
 src/app/            Next.js App Router routes, layouts, error/404 pages,
                      auth routes (login, forgot/reset password), dashboard
-                     (incl. /dashboard/staff), admin, MFA setup/verify
+                     (incl. /dashboard/staff, /dashboard/patients), admin,
+                     MFA setup/verify
 src/components/      Shared UI components
 src/lib/supabase/    Supabase clients: user-session (server.ts), browser
                      (client.ts, MFA only), the one service-role client
@@ -164,7 +164,23 @@ tests/rls/           RLS integration tests, run against a real local Postgres
 e2e/                 Playwright e2e tests
 ```
 
+## Patients (Phase 2)
+
+- Patient codes (`000123`) are a per-hospital sequence generated
+  atomically by a `next_patient_code()` Postgres function (`INSERT ...
+ON CONFLICT DO UPDATE`) — safe under concurrent registrations, see
+  `supabase/migrations/20260922000005_patients.sql`.
+- Search (`/dashboard/patients?q=...`) matches name (fuzzy, via
+  `pg_trgm`), mobile, and patient code through a `search_patients` DB
+  function; RLS still applies since it's invoker-rights, not
+  `SECURITY DEFINER`.
+- Creating a patient checks `possible_duplicate_patients` (mobile
+  match, or similar name + non-conflicting DOB) and shows a warning —
+  never a hard block — before it's saved.
+- No hard deletes: `patients.deleted_at` exists but nothing sets it
+  yet; there's no DELETE policy on the table at all.
+
 ## Deployment notes
 
 Not yet configured — deployment to Vercel (Mumbai/`bom1` region) lands
-once more of the core patient/visit workflow exists (Phase 2+).
+once more of the core visit/document workflow exists (Phase 3+).

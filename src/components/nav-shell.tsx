@@ -3,7 +3,7 @@ import type { StaffRole } from "@/types/database";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/patients", label: "Patients" },
+  { href: "/dashboard/patients", label: "Patients" },
   { href: "/visits", label: "Visits" },
   { href: "/documents", label: "Documents" },
   { href: "/settings", label: "Settings" },

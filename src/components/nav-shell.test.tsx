@@ -8,7 +8,10 @@ describe("NavShell", () => {
 
     expect(screen.getByText("Hospital & USG Records")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.getByRole("link", { name: "Patients" })).toHaveAttribute("href", "/patients");
+    expect(screen.getByRole("link", { name: "Patients" })).toHaveAttribute(
+      "href",
+      "/dashboard/patients",
+    );
   });
 
   it("shows a sign-in link when signed out", () => {

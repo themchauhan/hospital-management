@@ -13,6 +13,7 @@ export type HospitalStatus = "TRIAL" | "ACTIVE" | "SUSPENDED" | "EXPIRED";
 export type ModuleType = "GENERAL_OPD" | "USG";
 export type StaffRole = "SUPER_ADMIN" | "HOSPITAL_ADMIN" | "RECEPTIONIST";
 export type ProfileStatus = "ACTIVE" | "INACTIVE";
+export type PatientGender = "MALE" | "FEMALE" | "OTHER";
 
 export interface Database {
   public: {
@@ -106,6 +107,39 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["audit_logs"]["Row"]>;
         Relationships: [];
       };
+      patients: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          patient_code: string;
+          name: string;
+          mobile: string | null;
+          dob: string | null;
+          approximate_age_years: number | null;
+          guardian_name: string | null;
+          gender: PatientGender | null;
+          address: string | null;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+        };
+        // hospital_id and patient_code both default at the database
+        // level (see the migration), so neither is required here —
+        // the app sets hospital_id explicitly anyway (hard rule #2).
+        Insert: Partial<Database["public"]["Tables"]["patients"]["Row"]> & {
+          name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["patients"]["Row"]>;
+        Relationships: [];
+      };
+      patient_code_counters: {
+        Row: { hospital_id: string; next_number: number };
+        Insert: Partial<Database["public"]["Tables"]["patient_code_counters"]["Row"]> & {
+          hospital_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["patient_code_counters"]["Row"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -121,6 +155,18 @@ export interface Database {
       is_platform_admin: {
         Args: Record<string, never>;
         Returns: boolean;
+      };
+      next_patient_code: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      search_patients: {
+        Args: { p_query: string };
+        Returns: Database["public"]["Tables"]["patients"]["Row"][];
+      };
+      possible_duplicate_patients: {
+        Args: { p_name: string; p_mobile: string | null; p_dob: string | null };
+        Returns: Database["public"]["Tables"]["patients"]["Row"][];
       };
     };
   };
