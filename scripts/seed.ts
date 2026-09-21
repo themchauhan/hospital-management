@@ -172,10 +172,57 @@ async function main() {
         { module: "USG", name: "Pregnancy/Obstetric USG" },
       );
     }
-    const { error: visitTypesError } = await supabase
+    const { data: insertedVisitTypes, error: visitTypesError } = await supabase
       .from("visit_types")
-      .insert(visitTypes.map((vt) => ({ hospital_id: hospital.id, ...vt })));
+      .insert(visitTypes.map((vt) => ({ hospital_id: hospital.id, ...vt })))
+      .select();
     if (visitTypesError) throw visitTypesError;
+
+    // Document types + which visit types expect them. Phase 6 builds
+    // the admin UI to edit these; the seed just needs enough rows to
+    // demo document upload and the "Pending Documents" view.
+    const { data: idProofType, error: idProofError } = await supabase
+      .from("document_types")
+      .insert({
+        hospital_id: hospital.id,
+        name: "ID Proof",
+        scope: "PATIENT",
+        sensitive: true,
+      })
+      .select()
+      .single();
+    if (idProofError || !idProofType) throw idProofError;
+
+    const requirements: { visit_type_id: string; document_type_id: string }[] = (
+      insertedVisitTypes ?? []
+    ).map((vt) => ({ visit_type_id: vt.id, document_type_id: idProofType.id }));
+
+    if (hospitalSeed.modules.includes("GENERAL_OPD")) {
+      const { data: opdSlipType, error: opdSlipError } = await supabase
+        .from("document_types")
+        .insert({
+          hospital_id: hospital.id,
+          name: "OPD Slip / Prescription",
+          scope: "VISIT",
+          sensitive: false,
+        })
+        .select()
+        .single();
+      if (opdSlipError || !opdSlipType) throw opdSlipError;
+
+      const opdConsultation = insertedVisitTypes?.find((vt) => vt.name === "OPD Consultation");
+      if (opdConsultation) {
+        requirements.push({
+          visit_type_id: opdConsultation.id,
+          document_type_id: opdSlipType.id,
+        });
+      }
+    }
+
+    const { error: requirementsError } = await supabase
+      .from("visit_type_document_requirements")
+      .insert(requirements.map((r) => ({ hospital_id: hospital.id, ...r, required: true })));
+    if (requirementsError) throw requirementsError;
 
     if (hospitalSeed.name === "Sunrise General Hospital") {
       // A pre-deactivated account, for exercising the "deactivated

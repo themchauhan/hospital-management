@@ -7,8 +7,8 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **3 — visits, visit
-types, payments**.
+[`docs/phases/`](docs/phases). Current phase: **4 — documents
+(upload, view, requirements checklist)**.
 
 ## Tech stack
 
@@ -202,6 +202,46 @@ ON CONFLICT DO UPDATE`) — safe under concurrent registrations, see
   `x-pathname` (set in `middleware.ts`) so the MFA gate returns the
   user to the page they asked for, not always `/dashboard` — a real
   bug caught by an e2e test rather than a hand-wave.
+
+## Documents (Phase 4)
+
+- Two document tables mirror how the brief distinguishes a
+  configurable rule from its immutable history:
+  `visit_type_document_requirements` is the admin-editable rule
+  ("OPD Consultation requires an ID Proof", Phase 6 UI);
+  `visit_document_requirements` is a snapshot of that rule copied onto
+  a specific visit **by a database trigger** at insert time, so later
+  changes to the rule never rewrite the record of a past visit — and
+  the snapshot happens for every insert into `visits` regardless of
+  which code path creates the row, not just `createVisit()`.
+- `document_types.scope` (`PATIENT` or `VISIT`) is what lets a
+  document like ID Proof be captured once on a patient and
+  automatically satisfy the same requirement on every visit, instead
+  of being re-uploaded each time; a visit's checklist is fulfilled by
+  any document of that type at either the visit or the patient level.
+- Uploads are validated server-side by magic bytes
+  (`src/lib/documents/file-validation.ts`), never by the
+  browser-supplied extension/MIME header, and images are re-encoded
+  through `sharp` to strip EXIF metadata before they ever reach
+  Storage.
+- The `documents` Storage bucket is fully private; every read goes
+  through a signed URL (60s TTL) minted server-side by
+  `getDocumentViewUrl()`, which only runs after the caller's own RLS
+  already scoped the `documents` row to their hospital. Viewing a
+  document flagged `sensitive` (e.g. ID Proof) writes an
+  `audit_logs` row.
+- `/dashboard/documents` ("Pending documents") lists every visit still
+  missing a required document across the hospital — the safety net
+  the brief calls for so nothing is silently lost.
+- A real bug an e2e test caught: `ViewDocumentButton` opened a blank
+  tab synchronously (to survive the click gesture past an `await`)
+  with `window.open(..., "noopener")` and kept the returned reference
+  to redirect it later — but `noopener` makes Chromium return `null`,
+  so the reference-based redirect silently no-opped and the tab stayed
+  on `about:blank` forever. Fixed by targeting a named window instead
+  of holding a reference (`window.open("", name)` then later
+  `window.open(url, name, "noopener,noreferrer")`), which needs no
+  reference at all.
 
 ## Deployment notes
 

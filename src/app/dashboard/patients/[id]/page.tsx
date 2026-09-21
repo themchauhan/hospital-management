@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { derivePaymentStatus, sumPayments } from "@/lib/visits/payment-status";
+import { UploadDocumentForm } from "@/components/documents/upload-document-form";
+import { DocumentList } from "@/components/documents/document-list";
 
 export const metadata: Metadata = { title: "Patient — Hospital & USG Records" };
 
@@ -31,14 +33,26 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
     notFound();
   }
 
-  const { data: visits } = await supabase
-    .from("visits")
-    .select(
-      "id, visit_number, visit_date, status, fee_amount, visit_types(name), visit_payments(amount)",
-    )
-    .eq("patient_id", patient.id)
-    .order("visit_date", { ascending: false })
-    .order("visit_number", { ascending: false });
+  const [{ data: visits }, { data: patientDocumentTypes }, { data: documents }] = await Promise.all(
+    [
+      supabase
+        .from("visits")
+        .select(
+          "id, visit_number, visit_date, status, fee_amount, visit_types(name), visit_payments(amount)",
+        )
+        .eq("patient_id", patient.id)
+        .order("visit_date", { ascending: false })
+        .order("visit_number", { ascending: false }),
+      supabase.from("document_types").select("id, name").eq("scope", "PATIENT").eq("active", true),
+      supabase
+        .from("documents")
+        .select("id, file_name, file_type, created_at, document_types(name, sensitive)")
+        .eq("patient_id", patient.id)
+        .is("visit_id", null)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false }),
+    ],
+  );
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-16 sm:px-6">
@@ -122,11 +136,23 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
         )}
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-800">
         <h2 className="text-lg font-semibold">Documents</h2>
-        <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-          Document upload is built out in Phase 4.
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          Patient-level documents (e.g. ID proof) — captured once, reused on every visit.
         </p>
+
+        <div className="mt-4">
+          <UploadDocumentForm
+            patientId={patient.id}
+            revalidate={`/dashboard/patients/${patient.id}`}
+            documentTypes={patientDocumentTypes ?? []}
+          />
+        </div>
+
+        <div className="mt-6">
+          <DocumentList documents={documents ?? []} />
+        </div>
       </div>
     </main>
   );

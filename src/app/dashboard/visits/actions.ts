@@ -51,6 +51,12 @@ export async function createVisit(
     return { error: "Could not create the visit. Try again." };
   }
 
+  // Document requirements are snapshotted onto visit_document_requirements
+  // by a database trigger (visits_snapshot_document_requirements, see
+  // the Phase 4 migration) — not here — so it happens for every
+  // insert into `visits` regardless of which code path creates the
+  // row, not just this one.
+
   await logAudit({ action: "visit.created", targetType: "visit", targetId: visit.id });
 
   redirect(`/dashboard/visits/${visit.id}`);

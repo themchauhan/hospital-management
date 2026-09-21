@@ -20,6 +20,7 @@ export type PatientGender = "MALE" | "FEMALE" | "OTHER";
 export type VisitStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
 export type PaymentMode = "CASH" | "UPI" | "CARD" | "OTHER";
 export type PaymentStatus = "UNPAID" | "PARTIAL" | "PAID";
+export type DocumentScope = "PATIENT" | "VISIT";
 
 export interface Database {
   public: {
@@ -258,6 +259,139 @@ export interface Database {
             foreignKeyName: "visit_payments_visit_id_hospital_id_fkey";
             columns: ["visit_id", "hospital_id"];
             referencedRelation: "visits";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+        ];
+      };
+      document_types: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          name: string;
+          description: string | null;
+          scope: DocumentScope;
+          sensitive: boolean;
+          active: boolean;
+          version: number;
+          effective_from: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["document_types"]["Row"]> & {
+          name: string;
+          scope: DocumentScope;
+        };
+        Update: Partial<Database["public"]["Tables"]["document_types"]["Row"]>;
+        Relationships: [];
+      };
+      visit_type_document_requirements: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          visit_type_id: string;
+          document_type_id: string;
+          required: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["visit_type_document_requirements"]["Row"]> & {
+          visit_type_id: string;
+          document_type_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["visit_type_document_requirements"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "visit_type_document_requirements_visit_type_id_hospital_id_fkey";
+            columns: ["visit_type_id", "hospital_id"];
+            referencedRelation: "visit_types";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            // Postgres truncates identifiers past 63 bytes -- this is
+            // the actual generated name, not "..._requirements_...".
+            foreignKeyName: "visit_type_document_requireme_document_type_id_hospital_id_fkey";
+            columns: ["document_type_id", "hospital_id"];
+            referencedRelation: "document_types";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+        ];
+      };
+      visit_document_requirements: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          visit_id: string;
+          document_type_id: string;
+          document_type_name: string;
+          required: boolean;
+          created_at: string;
+        };
+        Insert: Partial<Database["public"]["Tables"]["visit_document_requirements"]["Row"]> & {
+          visit_id: string;
+          document_type_id: string;
+          document_type_name: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["visit_document_requirements"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "visit_document_requirements_visit_id_hospital_id_fkey";
+            columns: ["visit_id", "hospital_id"];
+            referencedRelation: "visits";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+        ];
+      };
+      documents: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          patient_id: string;
+          visit_id: string | null;
+          document_type_id: string;
+          file_name: string;
+          file_type: string;
+          storage_path: string;
+          file_size: number;
+          sha256: string;
+          page_no: number | null;
+          scan_session_id: string | null;
+          uploaded_by: string;
+          created_at: string;
+          deleted_at: string | null;
+        };
+        // hospital_id and uploaded_by both default at the database level.
+        Insert: Partial<Database["public"]["Tables"]["documents"]["Row"]> & {
+          patient_id: string;
+          document_type_id: string;
+          file_name: string;
+          file_type: string;
+          storage_path: string;
+          file_size: number;
+          sha256: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["documents"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "documents_patient_id_hospital_id_fkey";
+            columns: ["patient_id", "hospital_id"];
+            referencedRelation: "patients";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            foreignKeyName: "documents_visit_id_hospital_id_fkey";
+            columns: ["visit_id", "hospital_id"];
+            referencedRelation: "visits";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            foreignKeyName: "documents_document_type_id_hospital_id_fkey";
+            columns: ["document_type_id", "hospital_id"];
+            referencedRelation: "document_types";
             referencedColumns: ["id", "hospital_id"];
             isOneToOne: false;
           },

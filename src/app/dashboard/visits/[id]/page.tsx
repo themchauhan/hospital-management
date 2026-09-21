@@ -6,6 +6,8 @@ import { getSessionProfile } from "@/lib/auth/session";
 import { derivePaymentStatus, sumPayments } from "@/lib/visits/payment-status";
 import { PaymentForm } from "@/components/visits/payment-form";
 import { ReversalForm } from "@/components/visits/reversal-form";
+import { UploadDocumentForm } from "@/components/documents/upload-document-form";
+import { DocumentList } from "@/components/documents/document-list";
 
 export const metadata: Metadata = { title: "Visit — Hospital & USG Records" };
 
@@ -31,6 +33,36 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
   const amountPaid = sumPayments(visit.visit_payments);
   const balanceDue = Math.max(0, Number(visit.fee_amount) - amountPaid);
   const status = derivePaymentStatus(Number(visit.fee_amount), amountPaid);
+
+  const [{ data: requirements }, { data: visitDocumentTypes }, { data: documents }] =
+    await Promise.all([
+      supabase
+        .from("visit_document_requirements")
+        .select("id, document_type_id, document_type_name, required")
+        .eq("visit_id", visit.id),
+      supabase.from("document_types").select("id, name").eq("scope", "VISIT").eq("active", true),
+      supabase
+        .from("documents")
+        .select(
+          "id, file_name, file_type, created_at, document_type_id, document_types(name, sensitive)",
+        )
+        .eq("visit_id", visit.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false }),
+    ]);
+
+  // A requirement is fulfilled by any document of that type attached
+  // to this visit (VISIT-scope docs) OR to this patient at all
+  // (PATIENT-scope docs like ID Proof, captured once and reused).
+  const { data: patientDocumentTypeIds } = await supabase
+    .from("documents")
+    .select("document_type_id")
+    .eq("patient_id", visit.patients!.id)
+    .is("deleted_at", null);
+  const fulfilledTypeIds = new Set([
+    ...(documents ?? []).map((d) => d.document_type_id),
+    ...(patientDocumentTypeIds ?? []).map((d) => d.document_type_id),
+  ]);
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-16 sm:px-6">
@@ -122,6 +154,48 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
             <ReversalForm visitId={visit.id} />
           </div>
         ) : null}
+      </div>
+
+      <div className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+        <h2 className="text-lg font-semibold">Documents</h2>
+
+        {requirements && requirements.length > 0 ? (
+          <ul className="mt-3 flex flex-col gap-1.5 text-sm">
+            {requirements.map((r) => {
+              const fulfilled = fulfilledTypeIds.has(r.document_type_id);
+              return (
+                <li key={r.id} className="flex items-center gap-2">
+                  <span
+                    className={
+                      fulfilled
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-amber-700 dark:text-amber-400"
+                    }
+                  >
+                    {fulfilled ? "✓" : "○"}
+                  </span>
+                  {r.document_type_name}
+                  {!fulfilled && r.required ? (
+                    <span className="text-xs text-amber-700 dark:text-amber-400">(pending)</span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
+        <div className="mt-4">
+          <UploadDocumentForm
+            patientId={visit.patients!.id}
+            visitId={visit.id}
+            revalidate={`/dashboard/visits/${visit.id}`}
+            documentTypes={visitDocumentTypes ?? []}
+          />
+        </div>
+
+        <div className="mt-6">
+          <DocumentList documents={documents ?? []} />
+        </div>
       </div>
     </main>
   );

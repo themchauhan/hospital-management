@@ -36,6 +36,25 @@ export async function cleanupTestPatients(namePrefix: string): Promise<void> {
   const { data: visits } = await supabase.from("visits").select("id").in("patient_id", patientIds);
   const visitIds = (visits ?? []).map((v) => v.id);
 
+  // documents.patient_id/visit_id are both ON DELETE RESTRICT, so any
+  // document (patient- or visit-level) attached to these fixtures must
+  // go first — storage objects too, since nothing else will clean
+  // those up.
+  const { data: documents } = await supabase
+    .from("documents")
+    .select("id, storage_path")
+    .in("patient_id", patientIds);
+  if (documents && documents.length > 0) {
+    await supabase.storage.from("documents").remove(documents.map((d) => d.storage_path));
+    await supabase
+      .from("documents")
+      .delete()
+      .in(
+        "id",
+        documents.map((d) => d.id),
+      );
+  }
+
   if (visitIds.length > 0) {
     await supabase.from("visit_payments").delete().in("visit_id", visitIds);
     await supabase.from("visits").delete().in("id", visitIds);

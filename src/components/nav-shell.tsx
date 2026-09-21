@@ -5,7 +5,7 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/patients", label: "Patients" },
   { href: "/visits", label: "Visits" },
-  { href: "/documents", label: "Documents" },
+  { href: "/dashboard/documents", label: "Documents" },
   { href: "/settings", label: "Settings" },
 ] as const;
 
