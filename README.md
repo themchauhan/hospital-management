@@ -7,8 +7,8 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **5 — phone-camera QR
-scanning**.
+[`docs/phases/`](docs/phases). Current phase: **6 — configurable
+visit types & document requirements**.
 
 ## Tech stack
 
@@ -275,6 +275,31 @@ ON CONFLICT DO UPDATE`) — safe under concurrent registrations, see
   `<input capture="environment">`, automatic multi-page-to-PDF
   combination, cron-based cleanup of expired `scan_sessions` rows, and
   IP-based rate limiting.
+
+## Configurable visit types & documents (Phase 6)
+
+- `/dashboard/settings` (HOSPITAL_ADMIN only) makes what was seed-only
+  data admin-editable: enabling/disabling modules (GENERAL_OPD/USG),
+  visit types (with a `default_fee` that pre-fills — but never locks —
+  the fee on a new visit), document types, and which document types
+  are required/optional per visit type.
+- This is also the first phase to give `visit_types`,
+  `document_types`, and `visit_type_document_requirements` real
+  INSERT/UPDATE/DELETE RLS policies; the previous phases' policies for
+  these tables checked hospital match only, not role, so this phase
+  tightens all of them to HOSPITAL_ADMIN specifically — RLS enforces
+  that independently of the fact that no UI ever offered a
+  RECEPTIONIST these actions.
+- The requirements matrix (document type × visit type) is a tri-state
+  toggle — none / optional / required — backed by inserting, updating,
+  or deleting a single `visit_type_document_requirements` row per
+  cell; it never touches the Phase 4 snapshot trigger, so editing a
+  rule only ever changes the checklist for visits created afterward,
+  never a visit that already snapshotted its own checklist.
+- A document type's `scope` (PATIENT vs VISIT) is set once at creation
+  and not editable afterward — changing it on a type already attached
+  to real documents would be a data-integrity trap, not a simple field
+  edit.
 
 ## Deployment notes
 

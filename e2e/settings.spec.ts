@@ -1,0 +1,77 @@
+import { test, expect } from "@playwright/test";
+import { generateTotp } from "./utils/totp";
+import { resetMfaFactors } from "./utils/reset-mfa";
+import { cleanupTestPatients } from "./utils/cleanup-test-patients";
+import { createPatientViaUi } from "./utils/create-patient";
+
+const DEMO_PASSWORD = "demo-password-123!";
+const ADMIN_EMAIL = "admin@sunrise.test";
+
+test.beforeAll(async () => {
+  await cleanupTestPatients("E2E Settings Test Patient");
+});
+
+test("editing a visit type's document requirements changes the checklist for new visits only", async ({
+  page,
+}) => {
+  await resetMfaFactors(ADMIN_EMAIL);
+
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(ADMIN_EMAIL);
+  await page.getByLabel("Password").fill(DEMO_PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page).toHaveURL(/\/mfa\/setup/);
+  const secret = (await page.locator("code").textContent())?.trim();
+  await page.getByLabel("6-digit code").fill(generateTotp(secret!));
+  await page.getByRole("button", { name: "Confirm" }).click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard\/settings$/);
+
+  // Add a new VISIT-scope document type.
+  const docTypeName = `E2E Settings Doc Type ${Date.now()}`;
+  await page.getByLabel("Document type name").fill(docTypeName);
+  await page.getByLabel("Scope").selectOption("VISIT");
+  await page.getByRole("button", { name: "Add document type" }).click();
+  // Shows up in both the document-type list and the requirements
+  // matrix's row header — just confirm at least one is visible.
+  await expect(page.getByText(docTypeName).first()).toBeVisible();
+
+  // Mark it required for OPD Consultation (one click: none -> required).
+  // The cell's accessible name is "<visit type>: <state>" so it's
+  // unambiguous even if other visit types (from other specs' fixture
+  // data, never cleaned up) also show up as matrix columns.
+  const row = page.locator("tr", { hasText: docTypeName });
+  await row.getByRole("button", { name: /^OPD Consultation:/ }).click();
+  await expect(row.getByRole("button", { name: "OPD Consultation: Required" })).toBeVisible();
+
+  // Create the first patient/visit — should pick up the new requirement.
+  const name = `E2E Settings Test Patient ${Date.now()}`;
+  await createPatientViaUi(page, { name });
+  const patientUrl = page.url();
+  await page.getByRole("link", { name: "New visit" }).click();
+  await page.getByLabel("Visit type").selectOption({ label: "OPD Consultation" });
+  await page.getByRole("button", { name: "Create visit" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/visits\/[0-9a-f-]+$/);
+  const firstVisitUrl = page.url();
+
+  await expect(page.locator("li", { hasText: docTypeName })).toContainText("(pending)");
+
+  // Back to settings: relax the requirement to optional (required -> optional).
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await row.getByRole("button", { name: "OPD Consultation: Required" }).click();
+  await expect(row.getByRole("button", { name: "OPD Consultation: Optional" })).toBeVisible();
+
+  // A second visit under the same visit type no longer shows it pending.
+  await page.goto(`${patientUrl}/visits/new`);
+  await page.getByLabel("Visit type").selectOption({ label: "OPD Consultation" });
+  await page.getByRole("button", { name: "Create visit" }).click();
+  await expect(page).toHaveURL(/\/dashboard\/visits\/[0-9a-f-]+$/);
+  await expect(page.locator("li", { hasText: docTypeName })).not.toContainText("(pending)");
+
+  // The FIRST visit's already-snapshotted checklist is untouched.
+  await page.goto(firstVisitUrl);
+  await expect(page.locator("li", { hasText: docTypeName })).toContainText("(pending)");
+});

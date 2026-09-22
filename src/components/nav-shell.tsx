@@ -6,7 +6,7 @@ const NAV_LINKS = [
   { href: "/dashboard/patients", label: "Patients" },
   { href: "/visits", label: "Visits" },
   { href: "/dashboard/documents", label: "Documents" },
-  { href: "/settings", label: "Settings" },
+  { href: "/dashboard/settings", label: "Settings" },
 ] as const;
 
 const ROLE_LABELS: Record<StaffRole, string> = {
@@ -22,9 +22,9 @@ export interface NavShellSession {
 }
 
 /**
- * The Patients/Visits/Documents/Settings links are still placeholders
- * — those routes don't exist until later phases. Phase 1b only adds
- * the real sign-in/sign-out control on the right.
+ * The Visits link is still a placeholder — visits are per-patient
+ * only (no top-level /visits list exists yet). Phase 1b added the
+ * real sign-in/sign-out control on the right.
  *
  * `onSignOut` is passed in (rather than importing the `signOut`
  * server action directly here) so this component stays a plain,

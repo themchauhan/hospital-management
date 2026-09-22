@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { createVisit, type CreateVisitState } from "@/app/dashboard/visits/actions";
 
@@ -9,6 +9,10 @@ const initialState: CreateVisitState = {};
 interface Option {
   id: string;
   name: string;
+}
+
+interface VisitTypeOption extends Option {
+  defaultFee: number | null;
 }
 
 function SubmitButton() {
@@ -30,11 +34,19 @@ export function NewVisitForm({
   doctors,
 }: {
   patientId: string;
-  visitTypes: Option[];
+  visitTypes: VisitTypeOption[];
   doctors: Option[];
 }) {
   const action = createVisit.bind(null, patientId);
   const [state, formAction] = useActionState(action, initialState);
+  const [feeAmount, setFeeAmount] = useState("0");
+  const [feeTouched, setFeeTouched] = useState(false);
+
+  function handleVisitTypeChange(visitTypeId: string) {
+    if (feeTouched) return;
+    const visitType = visitTypes.find((vt) => vt.id === visitTypeId);
+    setFeeAmount(visitType?.defaultFee != null ? String(visitType.defaultFee) : "0");
+  }
 
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
@@ -46,6 +58,7 @@ export function NewVisitForm({
           id="visitTypeId"
           name="visitTypeId"
           required
+          onChange={(e) => handleVisitTypeChange(e.target.value)}
           className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
         >
           <option value="">Choose a visit type</option>
@@ -85,7 +98,11 @@ export function NewVisitForm({
           type="number"
           min={0}
           step="0.01"
-          defaultValue={0}
+          value={feeAmount}
+          onChange={(e) => {
+            setFeeTouched(true);
+            setFeeAmount(e.target.value);
+          }}
           className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
         />
       </div>

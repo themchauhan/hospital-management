@@ -1,0 +1,230 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getSessionProfile } from "@/lib/auth/session";
+import { requireRole, requireActiveTenant } from "@/lib/auth/guards";
+import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit/log";
+import type { ModuleType, DocumentScope } from "@/types/database";
+
+const SETTINGS_PATH = "/dashboard/settings";
+
+export async function enableModule(module: ModuleType): Promise<{ error?: string }> {
+  const profile = requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN"]));
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("hospital_modules")
+    .insert({ hospital_id: profile.hospitalId!, module });
+
+  if (error) {
+    return { error: "Could not enable that module." };
+  }
+
+  await logAudit({
+    action: "module.enabled",
+    targetType: "hospital_modules",
+    metadata: { module },
+  });
+  revalidatePath(SETTINGS_PATH);
+  return {};
+}
+
+export async function disableModule(module: ModuleType): Promise<{ error?: string }> {
+  requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN"]));
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("hospital_modules").delete().eq("module", module);
+
+  if (error) {
+    return { error: "Could not disable that module." };
+  }
+
+  await logAudit({
+    action: "module.disabled",
+    targetType: "hospital_modules",
+    metadata: { module },
+  });
+  revalidatePath(SETTINGS_PATH);
+  return {};
+}
+
+export interface VisitTypeFormState {
+  error?: string;
+}
+
+export async function createVisitType(
+  _prevState: VisitTypeFormState,
+  formData: FormData,
+): Promise<VisitTypeFormState> {
+  requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN"]));
+  return upsertVisitType(null, formData);
+}
+
+export async function updateVisitType(
+  visitTypeId: string,
+  _prevState: VisitTypeFormState,
+  formData: FormData,
+): Promise<VisitTypeFormState> {
+  requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN"]));
+  return upsertVisitType(visitTypeId, formData);
+}
+
+async function upsertVisitType(
+  visitTypeId: string | null,
+  formData: FormData,
+): Promise<VisitTypeFormState> {
+  const visitTypeModule = String(formData.get("module") ?? "") as ModuleType;
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const defaultFeeRaw = String(formData.get("defaultFee") ?? "").trim();
+  const defaultFee = defaultFeeRaw ? Number(defaultFeeRaw) : null;
+  const active = formData.get("active") === "on";
+
+  if (!name) {
+    return { error: "Enter a name." };
+  }
+  if (visitTypeModule !== "GENERAL_OPD" && visitTypeModule !== "USG") {
+    return { error: "Choose a module." };
+  }
+  if (defaultFee !== null && (Number.isNaN(defaultFee) || defaultFee < 0)) {
+    return { error: "Default fee must be a positive number." };
+  }
+
+  const supabase = await createClient();
+  const values = { module: visitTypeModule, name, description, default_fee: defaultFee, active };
+  const { error } = visitTypeId
+    ? await supabase.from("visit_types").update(values).eq("id", visitTypeId)
+    : await supabase.from("visit_types").insert(values);
+
+  if (error) {
+    return { error: "Could not save that visit type." };
+  }
+
+  await logAudit({
+    action: visitTypeId ? "visit_type.updated" : "visit_type.created",
+    targetType: "visit_type",
+    targetId: visitTypeId ?? undefined,
+  });
+  revalidatePath(SETTINGS_PATH);
+  return {};
+}
+
+export interface DocumentTypeFormState {
+  error?: string;
+}
+
+export async function createDocumentType(
+  _prevState: DocumentTypeFormState,
+  formData: FormData,
+): Promise<DocumentTypeFormState> {
+  requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN"]));
+
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const scope = String(formData.get("scope") ?? "") as DocumentScope;
+  const sensitive = formData.get("sensitive") === "on";
+
+  if (!name) {
+    return { error: "Enter a name." };
+  }
+  if (scope !== "PATIENT" && scope !== "VISIT") {
+    return { error: "Choose a scope." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("document_types")
+    .insert({ name, description, scope, sensitive });
+
+  if (error) {
+    return { error: "Could not save that document type." };
+  }
+
+  await logAudit({ action: "document_type.created", targetType: "document_type" });
+  revalidatePath(SETTINGS_PATH);
+  return {};
+}
+
+export async function updateDocumentType(
+  documentTypeId: string,
+  _prevState: DocumentTypeFormState,
+  formData: FormData,
+): Promise<DocumentTypeFormState> {
+  requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN"]));
+
+  const name = String(formData.get("name") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const sensitive = formData.get("sensitive") === "on";
+  const active = formData.get("active") === "on";
+
+  if (!name) {
+    return { error: "Enter a name." };
+  }
+
+  // scope is intentionally not editable here: changing PATIENT<->VISIT
+  // on a type already attached to real documents would be a data-
+  // integrity trap, not a simple field edit.
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("document_types")
+    .update({ name, description, sensitive, active })
+    .eq("id", documentTypeId);
+
+  if (error) {
+    return { error: "Could not save that document type." };
+  }
+
+  await logAudit({
+    action: "document_type.updated",
+    targetType: "document_type",
+    targetId: documentTypeId,
+  });
+  revalidatePath(SETTINGS_PATH);
+  return {};
+}
+
+export async function setRequirement(
+  visitTypeId: string,
+  documentTypeId: string,
+  required: boolean | null,
+): Promise<{ error?: string }> {
+  requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN"]));
+
+  const supabase = await createClient();
+
+  if (required === null) {
+    const { error } = await supabase
+      .from("visit_type_document_requirements")
+      .delete()
+      .eq("visit_type_id", visitTypeId)
+      .eq("document_type_id", documentTypeId);
+    if (error) return { error: "Could not update that requirement." };
+  } else {
+    const { data: existing } = await supabase
+      .from("visit_type_document_requirements")
+      .select("id")
+      .eq("visit_type_id", visitTypeId)
+      .eq("document_type_id", documentTypeId)
+      .maybeSingle();
+
+    const { error } = existing
+      ? await supabase
+          .from("visit_type_document_requirements")
+          .update({ required })
+          .eq("id", existing.id)
+      : await supabase
+          .from("visit_type_document_requirements")
+          .insert({ visit_type_id: visitTypeId, document_type_id: documentTypeId, required });
+    if (error) return { error: "Could not update that requirement." };
+  }
+
+  await logAudit({
+    action: "visit_type_document_requirement.updated",
+    targetType: "visit_type",
+    targetId: visitTypeId,
+    metadata: { document_type_id: documentTypeId, required },
+  });
+  revalidatePath(SETTINGS_PATH);
+  return {};
+}

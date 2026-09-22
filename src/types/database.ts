@@ -169,6 +169,7 @@ export interface Database {
           module: ModuleType;
           name: string;
           description: string | null;
+          default_fee: number | null;
           active: boolean;
           created_at: string;
           updated_at: string;
