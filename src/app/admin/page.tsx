@@ -34,6 +34,6 @@ export default async function AdminPage() {
         Signed in as {profile.name}. Centre provisioning and the subscription dashboard are built
         out in Phases 1c and 8. 
       </p>
-    </main> 
+    </main>  
   );
 }
