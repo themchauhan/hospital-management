@@ -32,7 +32,7 @@ export default async function AdminPage() {
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Super admin console</h1>
       <p className="mt-4 max-w-xl text-base leading-7 text-zinc-600 dark:text-zinc-400">
         Signed in as {profile.name}. Centre provisioning and the subscription dashboard are built
-        out in Phases 1c and 8.
+        out in Phases 1c and 8. 
       </p>
     </main> 
   );
