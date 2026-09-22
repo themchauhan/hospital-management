@@ -5,16 +5,29 @@ import type { Database } from "@/types/database";
 
 /**
  * The ONE place a service-role Supabase client may be constructed.
- * Bypasses RLS entirely — for provisioning tasks that need the
- * Supabase Admin API (creating/inviting Auth users), which no regular
- * user session can do regardless of role: platform-admin provisioning
- * (seed scripts, scripts/provision-super-admin.ts) and the
- * HOSPITAL_ADMIN staff-invite flow (Phase 1c). Every call site using
- * this client MUST still call requireRole()/requireActiveTenant()
- * first and derive any hospital_id from the caller's own
- * getSessionProfile() result, never from client input — RLS can't
- * backstop that for you here the way it does for a regular session
- * client. Never use this for an ordinary tenant read/write; use
+ * Bypasses RLS entirely. Two legitimate shapes of caller:
+ *
+ * 1. An authenticated staff action that needs the Supabase Admin API
+ *    (creating/inviting Auth users), which no regular user session
+ *    can do regardless of role: platform-admin provisioning (seed
+ *    scripts, scripts/provision-super-admin.ts) and the
+ *    HOSPITAL_ADMIN staff-invite flow (Phase 1c). These MUST still
+ *    call requireRole()/requireActiveTenant() first and derive any
+ *    hospital_id from the caller's own getSessionProfile() result,
+ *    never from client input — RLS can't backstop that here the way
+ *    it does for a regular session client.
+ *
+ * 2. A token-authenticated action with no user session at all: the
+ *    Phase 5 phone-camera scan upload (src/app/scan/actions.ts). The
+ *    phone never signs in, so there is no getSessionProfile() to call
+ *    — instead, hospital_id/patient_id/visit_id/document_type_id are
+ *    derived from a previously validated `scan_sessions` row
+ *    (resolveScanSession(), keyed on the token's hash), itself only
+ *    ever created earlier through shape (1) by an authenticated
+ *    receptionist/admin. The token is the only credential; treat it
+ *    with the same care as a password-reset token.
+ *
+ * Never use this for an ordinary tenant read/write; use
  * `src/lib/supabase/server.ts`'s `createClient()` instead so RLS
  * applies. Do not import this module from anything reachable by a
  * client component.

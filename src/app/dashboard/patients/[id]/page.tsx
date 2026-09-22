@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { derivePaymentStatus, sumPayments } from "@/lib/visits/payment-status";
 import { UploadDocumentForm } from "@/components/documents/upload-document-form";
 import { DocumentList } from "@/components/documents/document-list";
+import { ScanWithPhoneButton } from "@/components/scans/scan-with-phone-button";
 
 export const metadata: Metadata = { title: "Patient — Hospital & USG Records" };
 
@@ -142,12 +143,13 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
           Patient-level documents (e.g. ID proof) — captured once, reused on every visit.
         </p>
 
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap items-start gap-6">
           <UploadDocumentForm
             patientId={patient.id}
             revalidate={`/dashboard/patients/${patient.id}`}
             documentTypes={patientDocumentTypes ?? []}
           />
+          <ScanWithPhoneButton patientId={patient.id} documentTypes={patientDocumentTypes ?? []} />
         </div>
 
         <div className="mt-6">

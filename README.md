@@ -7,8 +7,8 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **4 — documents
-(upload, view, requirements checklist)**.
+[`docs/phases/`](docs/phases). Current phase: **5 — phone-camera QR
+scanning**.
 
 ## Tech stack
 
@@ -242,6 +242,39 @@ ON CONFLICT DO UPDATE`) — safe under concurrent registrations, see
   of holding a reference (`window.open("", name)` then later
   `window.open(url, name, "noopener,noreferrer")`), which needs no
   reference at all.
+
+## Phone-camera QR scanning (Phase 5)
+
+- The phone that scans the QR never signs in — it has no Supabase
+  Auth session at all, so none of the RLS policies elsewhere in this
+  schema can apply to it. Its only credential is a random 256-bit
+  token (only its sha256 hash is ever stored, in `scan_sessions`);
+  reads/writes made on its strength go through the service-role client
+  after independently re-validating the token — see the updated doc
+  comment on `src/lib/supabase/service-role.ts` and
+  `src/lib/scan/resolve-session.ts`.
+- The QR (and a plain-text fallback link below it, for no-camera-handy
+  cases) encodes `/scan#<token>` — a URL **fragment**, never a query
+  string, so the raw token is never sent in the initial page-load
+  request line and never appears in a server access log.
+- A session is scoped to one hospital + patient + (optional) visit +
+  document type, expires after 12 minutes, and is single-use: once
+  finished (`finishScanSession`) it can't be reused, matching the
+  brief's "Session is invalidated immediately after use or on expiry."
+  Only one live QR per staff member at a time — creating a new one
+  cancels that staff member's previous still-pending session.
+- Multiple pages per session are supported (reorder, delete, "add
+  another page"); deleting a page during the scan is a soft delete
+  (`deleted_at`), same as everywhere else — hard rule #6 doesn't carve
+  out an exception for "not yet finished."
+- The desktop's "Scan with phone" panel polls every ~2.5s and calls
+  `router.refresh()` when new pages appear, so the already-open
+  patient/visit page updates without a manual reload.
+- Deliberately out of scope for this MVP (see the Phase 5 plan for the
+  full reasoning): a live camera preview beyond the plain
+  `<input capture="environment">`, automatic multi-page-to-PDF
+  combination, cron-based cleanup of expired `scan_sessions` rows, and
+  IP-based rate limiting.
 
 ## Deployment notes
 

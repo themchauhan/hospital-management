@@ -21,6 +21,7 @@ export type VisitStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
 export type PaymentMode = "CASH" | "UPI" | "CARD" | "OTHER";
 export type PaymentStatus = "UNPAID" | "PARTIAL" | "PAID";
 export type DocumentScope = "PATIENT" | "VISIT";
+export type ScanSessionStatus = "PENDING" | "COMPLETED" | "CANCELLED";
 
 export interface Database {
   public: {
@@ -390,6 +391,58 @@ export interface Database {
           },
           {
             foreignKeyName: "documents_document_type_id_hospital_id_fkey";
+            columns: ["document_type_id", "hospital_id"];
+            referencedRelation: "document_types";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            foreignKeyName: "documents_scan_session_id_hospital_id_fkey";
+            columns: ["scan_session_id", "hospital_id"];
+            referencedRelation: "scan_sessions";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+        ];
+      };
+      scan_sessions: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          created_by: string;
+          patient_id: string;
+          visit_id: string | null;
+          document_type_id: string;
+          token_hash: string;
+          status: ScanSessionStatus;
+          expires_at: string;
+          completed_at: string | null;
+          created_at: string;
+        };
+        // hospital_id and created_by both default at the database level.
+        Insert: Partial<Database["public"]["Tables"]["scan_sessions"]["Row"]> & {
+          patient_id: string;
+          document_type_id: string;
+          token_hash: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["scan_sessions"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "scan_sessions_patient_id_hospital_id_fkey";
+            columns: ["patient_id", "hospital_id"];
+            referencedRelation: "patients";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            foreignKeyName: "scan_sessions_visit_id_hospital_id_fkey";
+            columns: ["visit_id", "hospital_id"];
+            referencedRelation: "visits";
+            referencedColumns: ["id", "hospital_id"];
+            isOneToOne: false;
+          },
+          {
+            foreignKeyName: "scan_sessions_document_type_id_hospital_id_fkey";
             columns: ["document_type_id", "hospital_id"];
             referencedRelation: "document_types";
             referencedColumns: ["id", "hospital_id"];
