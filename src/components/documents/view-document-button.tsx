@@ -42,7 +42,7 @@ export function ViewDocumentButton({ documentId }: { documentId: string }) {
         type="button"
         onClick={handleClick}
         disabled={loading}
-        className="text-sm text-zinc-950 underline disabled:opacity-60 dark:text-zinc-50"
+        className="text-sm text-teal-700 underline hover:text-teal-800 disabled:opacity-60"
       >
         {loading ? "Opening…" : "View"}
       </button>

@@ -5,6 +5,7 @@ const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/patients", label: "Patients" },
   { href: "/visits", label: "Visits" },
+  { href: "/dashboard/usg", label: "USG" },
   { href: "/dashboard/documents", label: "Documents" },
   { href: "/dashboard/settings", label: "Settings" },
 ] as const;
@@ -39,17 +40,20 @@ export function NavShell({
   onSignOut?: () => void | Promise<void>;
 }) {
   return (
-    <header className="border-b border-zinc-200 dark:border-zinc-800 print:hidden">
+    <header className="border-b border-slate-200 bg-white print:hidden">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
-          Hospital &amp; USG Records
+        <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-teal-600 text-xs font-bold text-white">
+            +
+          </span>
+          <span>Hospital &amp; USG Records</span>
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-1">
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-md px-3 py-1.5 text-sm text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-50"
+              className="rounded-md px-3 py-1.5 text-sm text-slate-600 transition-colors hover:bg-teal-50 hover:text-teal-800"
             >
               {link.label}
             </Link>
@@ -57,8 +61,8 @@ export function NavShell({
         </nav>
         {session ? (
           <div className="flex items-center gap-3">
-            <div className="text-right text-xs leading-tight text-zinc-500 dark:text-zinc-400">
-              <p className="font-medium text-zinc-950 dark:text-zinc-50">{session.email}</p>
+            <div className="text-right text-xs leading-tight text-slate-500">
+              <p className="font-medium text-slate-900">{session.email}</p>
               <p>
                 {ROLE_LABELS[session.role]}
                 {session.hospitalName ? ` · ${session.hospitalName}` : ""}
@@ -67,7 +71,7 @@ export function NavShell({
             <form action={onSignOut ?? (() => {})}>
               <button
                 type="submit"
-                className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"
               >
                 Sign out
               </button>
@@ -76,7 +80,7 @@ export function NavShell({
         ) : (
           <Link
             href="/login"
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition-colors hover:bg-slate-50"
           >
             Sign in
           </Link>

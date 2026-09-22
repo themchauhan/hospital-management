@@ -52,7 +52,7 @@ export default async function SettingsPage() {
       </p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight">Settings</h1>
 
-      <div className="mt-10 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold">Modules</h2>
         <div className="mt-4 flex flex-wrap gap-3">
           {ALL_MODULES.map(({ module, label }) => (
@@ -66,7 +66,7 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      <div className="mt-10 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold">Visit types</h2>
         <div className="mt-4">
           <VisitTypeForm />
@@ -76,8 +76,13 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      <div className="mt-10 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold">Document types</h2>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          Adding a type with the same name as an existing one supersedes it as a new version — the
+          old one is marked inactive automatically. Mark a type &ldquo;PC-PNDT declaration&rdquo;
+          (for Pregnancy/Obstetric USG) so its current version and effective date show on the visit.
+        </p>
         <div className="mt-4">
           <DocumentTypeForm />
         </div>
@@ -86,7 +91,7 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      <div className="mt-10 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-10 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold">Document requirements</h2>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Which document types are required (or optional) for each visit type. New visits snapshot

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Fragment } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -9,6 +10,7 @@ import { ReversalForm } from "@/components/visits/reversal-form";
 import { UploadDocumentForm } from "@/components/documents/upload-document-form";
 import { DocumentList } from "@/components/documents/document-list";
 import { ScanWithPhoneButton } from "@/components/scans/scan-with-phone-button";
+import { StatusTransitionButtons } from "@/components/visits/status-transition-buttons";
 
 export const metadata: Metadata = { title: "Visit — Hospital & USG Records" };
 
@@ -65,6 +67,15 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
     ...(patientDocumentTypeIds ?? []).map((d) => d.document_type_id),
   ]);
 
+  const { data: pcPndtTypes } = await supabase
+    .from("document_types")
+    .select("version, effective_from")
+    .in(
+      "id",
+      (requirements ?? []).map((r) => r.document_type_id),
+    )
+    .eq("pc_pndt_form", true);
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-16 sm:px-6">
       <div className="flex items-start justify-between gap-4">
@@ -95,16 +106,29 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
         <dd>{visit.doctors?.name ?? "—"}</dd>
 
         <dt className="text-zinc-500 dark:text-zinc-400">Status</dt>
-        <dd>{visit.status}</dd>
+        <dd>
+          <StatusTransitionButtons visitId={visit.id} status={visit.status} />
+        </dd>
 
         <dt className="text-zinc-500 dark:text-zinc-400">Follow-up</dt>
         <dd>{visit.follow_up_date ?? "—"}</dd>
 
         <dt className="text-zinc-500 dark:text-zinc-400">Notes</dt>
         <dd>{visit.notes ?? "—"}</dd>
+
+        {pcPndtTypes && pcPndtTypes.length > 0
+          ? pcPndtTypes.map((pt, i) => (
+              <Fragment key={i}>
+                <dt className="text-zinc-500 dark:text-zinc-400">PC-PNDT declaration</dt>
+                <dd>
+                  v{pt.version}, effective {pt.effective_from}
+                </dd>
+              </Fragment>
+            ))
+          : null}
       </dl>
 
-      <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-12 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-baseline gap-3">
           <h2 className="text-lg font-semibold">Payment</h2>
           <span className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -157,7 +181,7 @@ export default async function VisitDetailPage({ params }: { params: Promise<{ id
         ) : null}
       </div>
 
-      <div className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold">Documents</h2>
 
         {requirements && requirements.length > 0 ? (

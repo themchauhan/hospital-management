@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
 
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col bg-white text-zinc-950 dark:bg-black dark:text-zinc-50">
+      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
         <NavShell
           session={
             profile

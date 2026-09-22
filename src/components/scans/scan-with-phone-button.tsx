@@ -81,7 +81,7 @@ export function ScanWithPhoneButton({
           alt="QR code to open the scan page on a phone"
           width={180}
           height={180}
-          className="rounded-md bg-white p-2"
+          className="rounded-md border border-slate-200 bg-white p-2"
         />
         <p className="text-zinc-500 dark:text-zinc-400">
           Or open this link on the phone directly:{" "}
@@ -97,7 +97,7 @@ export function ScanWithPhoneButton({
         <button
           type="button"
           onClick={() => setSession(null)}
-          className="text-sm text-zinc-950 underline dark:text-zinc-50"
+          className="text-sm text-teal-700 underline hover:text-teal-800"
         >
           Cancel
         </button>
@@ -115,7 +115,7 @@ export function ScanWithPhoneButton({
           id="scanDocumentTypeId"
           value={documentTypeId}
           onChange={(e) => setDocumentTypeId(e.target.value)}
-          className="rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none focus:border-zinc-950 dark:border-zinc-700 dark:focus:border-zinc-50"
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-teal-600"
         >
           <option value="">Choose a type</option>
           {documentTypes.map((dt) => (

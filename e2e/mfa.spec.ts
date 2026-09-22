@@ -38,7 +38,7 @@ test.describe.serial("MFA enrollment and verification", () => {
     await page.getByRole("button", { name: "Confirm" }).click();
 
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Welcome back/ })).toBeVisible();
 
     // Sign out and back in: this time a verified factor already
     // exists, so it should challenge rather than ask to enroll again.

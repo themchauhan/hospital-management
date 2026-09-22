@@ -83,7 +83,7 @@ export function VisitTypeList({ visitTypes }: { visitTypes: VisitTypeRow[] }) {
                 <button
                   type="button"
                   onClick={() => setEditingId(vt.id)}
-                  className="text-sm text-zinc-950 underline dark:text-zinc-50"
+                  className="text-sm text-teal-700 underline hover:text-teal-800"
                 >
                   Edit
                 </button>

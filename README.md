@@ -7,8 +7,8 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **6 — configurable
-visit types & document requirements**.
+[`docs/phases/`](docs/phases). Current phase: **7 — USG dashboard,
+workflow, and PC-PNDT tracking**.
 
 ## Tech stack
 
@@ -300,6 +300,37 @@ ON CONFLICT DO UPDATE`) — safe under concurrent registrations, see
   and not editable afterward — changing it on a type already attached
   to real documents would be a data-integrity trap, not a simple field
   edit.
+
+## USG dashboard, workflow & PC-PNDT tracking (Phase 7)
+
+- `/dashboard/usg` (any hospital staff role, but only for hospitals
+  with the USG module enabled — redirects to `/dashboard` otherwise)
+  is a same-day Kanban over that hospital's USG visits: **Waiting**,
+  **Documents pending**, **In progress**, **Completed**. Every visit
+  lands in exactly one column, by precedence — `COMPLETED`/
+  `IN_PROGRESS` status first, then whether a required document is
+  still missing, else Waiting — and a "today's collection by mode and
+  by staff" summary (spanning all visits, not just USG) sits below it.
+- A visit's examination status (`visits.status`, gained `IN_PROGRESS`
+  this phase) only ever moves forward — SCHEDULED → IN_PROGRESS →
+  COMPLETED — with no back-transitions and no gate on the document
+  checklist being complete first; the checklist is informational here,
+  same as Pending Documents and the duplicate-patient warning
+  elsewhere in this app.
+- **PC-PNDT declarations reuse `document_types.version`/
+  `effective_from`**, unused since the Phase 4 migration for exactly
+  this purpose. Creating a document type with the same name as an
+  existing one (in `/dashboard/settings`) supersedes it as a new
+  version — the version number is always server-derived, never
+  trusted from the client — and a document type flagged "PC-PNDT
+  declaration" shows its current version/effective date on any visit
+  that requires it.
+- **Fetal-sex safeguard**: no field anywhere in this schema captures
+  examination findings or fetal sex — documents are opaque scanned
+  images/PDFs, and `visits.notes` is free text staff already control.
+  That is the actual safeguard: there is nothing structured to
+  disclose because nothing structured is ever captured. This is a
+  deliberate, load-bearing omission, not something left for later.
 
 ## Deployment notes
 

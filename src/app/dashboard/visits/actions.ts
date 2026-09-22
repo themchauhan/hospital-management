@@ -6,7 +6,7 @@ import { getSessionProfile } from "@/lib/auth/session";
 import { requireRole, requireActiveTenant, AuthError } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit/log";
-import type { PaymentMode } from "@/types/database";
+import type { PaymentMode, VisitStatus } from "@/types/database";
 
 export interface CreateVisitState {
   error?: string;
@@ -119,5 +119,55 @@ export async function recordPayment(
   });
 
   revalidatePath(`/dashboard/visits/${visitId}`);
+  return {};
+}
+
+const FORWARD_TRANSITIONS: Record<VisitStatus, VisitStatus | null> = {
+  SCHEDULED: "IN_PROGRESS",
+  IN_PROGRESS: "COMPLETED",
+  COMPLETED: null,
+  CANCELLED: null,
+};
+
+export async function setVisitExaminationStatus(
+  visitId: string,
+  nextStatus: "IN_PROGRESS" | "COMPLETED",
+): Promise<{ error?: string }> {
+  requireActiveTenant(requireRole(await getSessionProfile(), ["HOSPITAL_ADMIN", "RECEPTIONIST"]));
+
+  const supabase = await createClient();
+  const { data: visit } = await supabase
+    .from("visits")
+    .select("status")
+    .eq("id", visitId)
+    .maybeSingle();
+  if (!visit) {
+    return { error: "Visit not found." };
+  }
+
+  // Forward-only: a visit can only move to the next stage in its own
+  // sequence, never skip ahead or move backward, and never leave
+  // COMPLETED/CANCELLED. No exception for who's asking — the sequence
+  // itself is the guard, not a role check.
+  if (FORWARD_TRANSITIONS[visit.status] !== nextStatus) {
+    return {
+      error: `Cannot move a ${visit.status.toLowerCase()} visit to ${nextStatus.toLowerCase()}.`,
+    };
+  }
+
+  const { error } = await supabase.from("visits").update({ status: nextStatus }).eq("id", visitId);
+  if (error) {
+    return { error: "Could not update the visit status." };
+  }
+
+  await logAudit({
+    action: "visit.status_changed",
+    targetType: "visit",
+    targetId: visitId,
+    metadata: { status: nextStatus },
+  });
+
+  revalidatePath(`/dashboard/visits/${visitId}`);
+  revalidatePath("/dashboard/usg");
   return {};
 }

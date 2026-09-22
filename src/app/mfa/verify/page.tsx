@@ -29,12 +29,12 @@ export default async function MfaVerifyPage({
 
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center justify-center px-4 py-16 sm:px-6">
-      <div className="flex w-full max-w-sm flex-col gap-6">
+      <div className="flex w-full max-w-sm flex-col gap-6 rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Verify it&apos;s you</h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Enter the code from your authenticator app.
-          </p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+            Verify it&apos;s you
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">Enter the code from your authenticator app.</p>
         </div>
         <MfaVerifyForm next={next} />
       </div>

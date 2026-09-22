@@ -124,6 +124,7 @@ export async function createDocumentType(
   const description = String(formData.get("description") ?? "").trim() || null;
   const scope = String(formData.get("scope") ?? "") as DocumentScope;
   const sensitive = formData.get("sensitive") === "on";
+  const pcPndtForm = formData.get("pcPndtForm") === "on";
 
   if (!name) {
     return { error: "Enter a name." };
@@ -133,15 +134,50 @@ export async function createDocumentType(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+
+  // Creating a document type with the same name as an existing one is
+  // treated as superseding it with a new version (per document_types'
+  // own version/effective_from columns, unused since Phase 4 for
+  // exactly this) -- the version number is always server-derived,
+  // never trusted from the client.
+  const { data: priorVersions } = await supabase
     .from("document_types")
-    .insert({ name, description, scope, sensitive });
+    .select("id, version")
+    .eq("name", name);
+  const nextVersion =
+    priorVersions && priorVersions.length > 0
+      ? Math.max(...priorVersions.map((v) => v.version)) + 1
+      : 1;
+
+  const { error } = await supabase.from("document_types").insert({
+    name,
+    description,
+    scope,
+    sensitive,
+    pc_pndt_form: pcPndtForm,
+    version: nextVersion,
+    effective_from: new Date().toISOString().slice(0, 10),
+  });
 
   if (error) {
     return { error: "Could not save that document type." };
   }
 
-  await logAudit({ action: "document_type.created", targetType: "document_type" });
+  if (priorVersions && priorVersions.length > 0) {
+    await supabase
+      .from("document_types")
+      .update({ active: false })
+      .in(
+        "id",
+        priorVersions.map((v) => v.id),
+      );
+  }
+
+  await logAudit({
+    action: "document_type.created",
+    targetType: "document_type",
+    metadata: { name, version: nextVersion, superseded: priorVersions?.length ?? 0 },
+  });
   revalidatePath(SETTINGS_PATH);
   return {};
 }
@@ -156,6 +192,7 @@ export async function updateDocumentType(
   const name = String(formData.get("name") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
   const sensitive = formData.get("sensitive") === "on";
+  const pcPndtForm = formData.get("pcPndtForm") === "on";
   const active = formData.get("active") === "on";
 
   if (!name) {
@@ -164,11 +201,14 @@ export async function updateDocumentType(
 
   // scope is intentionally not editable here: changing PATIENT<->VISIT
   // on a type already attached to real documents would be a data-
-  // integrity trap, not a simple field edit.
+  // integrity trap, not a simple field edit. version/effective_from
+  // are likewise not editable in place -- create a new document type
+  // with the same name instead, which supersedes this one as a new
+  // version (see createDocumentType).
   const supabase = await createClient();
   const { error } = await supabase
     .from("document_types")
-    .update({ name, description, sensitive, active })
+    .update({ name, description, sensitive, pc_pndt_form: pcPndtForm, active })
     .eq("id", documentTypeId);
 
   if (error) {

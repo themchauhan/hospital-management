@@ -21,7 +21,7 @@ async function login(page: import("@playwright/test").Page, email: string) {
 test("a tenant user logs in and lands on /dashboard", async ({ page }) => {
   await login(page, TENANT_EMAIL);
   await expect(page).toHaveURL(/\/dashboard$/);
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Welcome back/ })).toBeVisible();
   await expect(page.getByText(TENANT_EMAIL)).toBeVisible();
 });
 

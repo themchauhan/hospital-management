@@ -10,6 +10,9 @@ export interface DocumentTypeRow {
   description: string | null;
   scope: DocumentScope;
   sensitive: boolean;
+  pc_pndt_form: boolean;
+  version: number;
+  effective_from: string;
   active: boolean;
 }
 
@@ -29,6 +32,7 @@ export function DocumentTypeList({ documentTypes }: { documentTypes: DocumentTyp
           <th className="py-2 font-medium">Name</th>
           <th className="py-2 font-medium">Scope</th>
           <th className="py-2 font-medium">Sensitive</th>
+          <th className="py-2 font-medium">Version</th>
           <th className="py-2 font-medium">Status</th>
           <th className="py-2 font-medium">
             <span className="sr-only">Actions</span>
@@ -39,7 +43,7 @@ export function DocumentTypeList({ documentTypes }: { documentTypes: DocumentTyp
         {documentTypes.map((dt) =>
           editingId === dt.id ? (
             <tr key={dt.id} className="border-b border-zinc-100 dark:border-zinc-900">
-              <td colSpan={5} className="py-3">
+              <td colSpan={6} className="py-3">
                 <DocumentTypeForm
                   documentTypeId={dt.id}
                   submitLabel="Save"
@@ -48,6 +52,7 @@ export function DocumentTypeList({ documentTypes }: { documentTypes: DocumentTyp
                     description: dt.description,
                     scope: dt.scope,
                     sensitive: dt.sensitive,
+                    pcPndtForm: dt.pc_pndt_form,
                     active: dt.active,
                   }}
                   onSaved={() => setEditingId(null)}
@@ -63,9 +68,19 @@ export function DocumentTypeList({ documentTypes }: { documentTypes: DocumentTyp
             </tr>
           ) : (
             <tr key={dt.id} className="border-b border-zinc-100 dark:border-zinc-900">
-              <td className="py-2">{dt.name}</td>
+              <td className="py-2">
+                {dt.name}
+                {dt.pc_pndt_form ? (
+                  <span className="ml-1.5 rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-800 dark:bg-violet-950 dark:text-violet-300">
+                    PC-PNDT
+                  </span>
+                ) : null}
+              </td>
               <td className="py-2 text-zinc-600 dark:text-zinc-400">{SCOPE_LABELS[dt.scope]}</td>
               <td className="py-2">{dt.sensitive ? "Yes" : "No"}</td>
+              <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                v{dt.version} ({dt.effective_from})
+              </td>
               <td className="py-2">
                 <span
                   className={
@@ -81,7 +96,7 @@ export function DocumentTypeList({ documentTypes }: { documentTypes: DocumentTyp
                 <button
                   type="button"
                   onClick={() => setEditingId(dt.id)}
-                  className="text-sm text-zinc-950 underline dark:text-zinc-50"
+                  className="text-sm text-teal-700 underline hover:text-teal-800"
                 >
                   Edit
                 </button>

@@ -225,7 +225,7 @@ export default function ScanPage() {
                 type="button"
                 onClick={handleConfirm}
                 disabled={busy}
-                className="rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-950"
+                className="rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700 disabled:opacity-60"
               >
                 {busy ? "Uploading…" : "Use this photo"}
               </button>
@@ -265,7 +265,7 @@ export default function ScanPage() {
           type="button"
           onClick={handleFinish}
           disabled={busy}
-          className="mt-8 w-fit rounded-md bg-zinc-950 px-4 py-2 text-sm font-medium text-white disabled:opacity-60 dark:bg-white dark:text-zinc-950"
+          className="mt-8 w-fit rounded-md bg-teal-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700 disabled:opacity-60"
         >
           Finish
         </button>

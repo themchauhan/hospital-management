@@ -219,6 +219,46 @@ async function main() {
       }
     }
 
+    if (hospitalSeed.modules.includes("USG")) {
+      const { data: usgReportType, error: usgReportError } = await supabase
+        .from("document_types")
+        .insert({
+          hospital_id: hospital.id,
+          name: "USG Report",
+          scope: "VISIT",
+          sensitive: false,
+        })
+        .select()
+        .single();
+      if (usgReportError || !usgReportType) throw usgReportError;
+
+      const usgVisitTypes = (insertedVisitTypes ?? []).filter((vt) => vt.module === "USG");
+      for (const vt of usgVisitTypes) {
+        requirements.push({ visit_type_id: vt.id, document_type_id: usgReportType.id });
+      }
+
+      // Phase 7: PC-PNDT declaration, applicable only to pregnancy/
+      // obstetric exams (per the brief, "For pregnancy/obstetric USG,
+      // support centre-configured... PC-PNDT documentation").
+      const { data: pcPndtType, error: pcPndtError } = await supabase
+        .from("document_types")
+        .insert({
+          hospital_id: hospital.id,
+          name: "PC-PNDT Declaration",
+          scope: "VISIT",
+          sensitive: false,
+          pc_pndt_form: true,
+        })
+        .select()
+        .single();
+      if (pcPndtError || !pcPndtType) throw pcPndtError;
+
+      const pregnancyUsg = insertedVisitTypes?.find((vt) => vt.name === "Pregnancy/Obstetric USG");
+      if (pregnancyUsg) {
+        requirements.push({ visit_type_id: pregnancyUsg.id, document_type_id: pcPndtType.id });
+      }
+    }
+
     const { error: requirementsError } = await supabase
       .from("visit_type_document_requirements")
       .insert(requirements.map((r) => ({ hospital_id: hospital.id, ...r, required: true })));

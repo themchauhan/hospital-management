@@ -17,7 +17,7 @@ export type ModuleType = "GENERAL_OPD" | "USG";
 export type StaffRole = "SUPER_ADMIN" | "HOSPITAL_ADMIN" | "RECEPTIONIST";
 export type ProfileStatus = "ACTIVE" | "INACTIVE";
 export type PatientGender = "MALE" | "FEMALE" | "OTHER";
-export type VisitStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
+export type VisitStatus = "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 export type PaymentMode = "CASH" | "UPI" | "CARD" | "OTHER";
 export type PaymentStatus = "UNPAID" | "PARTIAL" | "PAID";
 export type DocumentScope = "PATIENT" | "VISIT";
@@ -264,6 +264,13 @@ export interface Database {
             referencedColumns: ["id", "hospital_id"];
             isOneToOne: false;
           },
+          {
+            foreignKeyName: "visit_payments_received_by_fkey";
+            columns: ["received_by"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+            isOneToOne: false;
+          },
         ];
       };
       document_types: {
@@ -277,6 +284,7 @@ export interface Database {
           active: boolean;
           version: number;
           effective_from: string;
+          pc_pndt_form: boolean;
           created_at: string;
           updated_at: string;
         };

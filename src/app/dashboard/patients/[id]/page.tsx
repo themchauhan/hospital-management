@@ -89,7 +89,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
         <dd>{patient.address ?? "—"}</dd>
       </dl>
 
-      <div className="mt-12 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-12 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Visits</h2>
           <Link
@@ -137,7 +137,7 @@ export default async function PatientProfilePage({ params }: { params: Promise<{
         )}
       </div>
 
-      <div className="mt-8 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+      <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold">Documents</h2>
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
           Patient-level documents (e.g. ID proof) — captured once, reused on every visit.
