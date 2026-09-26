@@ -1,7 +1,5 @@
 import path from "node:path";
 import { test, expect } from "@playwright/test";
-import { generateTotp } from "./utils/totp";
-import { resetMfaFactors } from "./utils/reset-mfa";
 import { cleanupTestPatients } from "./utils/cleanup-test-patients";
 import { createPatientViaUi } from "./utils/create-patient";
 
@@ -14,23 +12,20 @@ test.beforeAll(async () => {
   await cleanupTestPatients("E2E USG Test Patient");
 });
 
-async function loginWithMfa(page: import("@playwright/test").Page, email: string) {
-  await resetMfaFactors(email);
+// HOSPITAL_ADMIN doesn't require MFA at the pilot stage (see
+// src/lib/auth/mfa.ts), so this is a plain login.
+async function login(page: import("@playwright/test").Page, email: string) {
   await page.goto("/login");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/mfa\/setup/);
-  const secret = (await page.locator("code").textContent())?.trim();
-  await page.getByLabel("6-digit code").fill(generateTotp(secret!));
-  await page.getByRole("button", { name: "Confirm" }).click();
   await expect(page).toHaveURL(/\/dashboard$/);
 }
 
 test("a pregnancy/obstetric USG visit moves through the dashboard columns as its documents and status change", async ({
   page,
 }) => {
-  await loginWithMfa(page, CLARITY_ADMIN_EMAIL);
+  await login(page, CLARITY_ADMIN_EMAIL);
 
   const name = `E2E USG Test Patient ${Date.now()}`;
   await createPatientViaUi(page, { name });
@@ -103,7 +98,7 @@ test("a pregnancy/obstetric USG visit moves through the dashboard columns as its
 });
 
 test("a GENERAL_OPD-only hospital is redirected away from the USG dashboard", async ({ page }) => {
-  await loginWithMfa(page, SUNRISE_ADMIN_EMAIL);
+  await login(page, SUNRISE_ADMIN_EMAIL);
   await page.goto("/dashboard/usg");
   await expect(page).toHaveURL(/\/dashboard$/);
 });

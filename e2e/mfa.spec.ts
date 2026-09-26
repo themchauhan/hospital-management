@@ -3,15 +3,17 @@ import { generateTotp } from "./utils/totp";
 import { resetMfaFactors } from "./utils/reset-mfa";
 
 const DEMO_PASSWORD = "demo-password-123!";
-// A dedicated hospital admin so this spec's MFA enrollment doesn't
-// collide with auth.spec.ts logging into the same account.
-const ADMIN_EMAIL = "admin@wellspring.test";
+// MFA is only mandatory for SUPER_ADMIN at the pilot stage (see
+// src/lib/auth/mfa.ts) — HOSPITAL_ADMIN/RECEPTIONIST don't enforce it
+// for now, so this spec exercises the enroll/verify/incorrect-code
+// flows against the platform admin account instead.
+const ADMIN_EMAIL = "super@platform.test";
 
 // Both specs below share the same seeded account and its MFA
 // enrollment state, so they must not run concurrently with each other
 // (playwright.config.ts otherwise parallelizes across the whole suite).
 test.describe.serial("MFA enrollment and verification", () => {
-  test("a HOSPITAL_ADMIN must enroll MFA on first login, then only re-verify on later logins", async ({
+  test("a SUPER_ADMIN must enroll MFA on first login, then only re-verify on later logins", async ({
     page,
   }) => {
     // Guarantee this run exercises the enroll path regardless of
@@ -37,8 +39,8 @@ test.describe.serial("MFA enrollment and verification", () => {
     await page.getByLabel("6-digit code").fill(generateTotp(secret!));
     await page.getByRole("button", { name: "Confirm" }).click();
 
-    await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByRole("heading", { name: /^Welcome back/ })).toBeVisible();
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByRole("heading", { name: "Super admin console" })).toBeVisible();
 
     // Sign out and back in: this time a verified factor already
     // exists, so it should challenge rather than ask to enroll again.
@@ -55,7 +57,7 @@ test.describe.serial("MFA enrollment and verification", () => {
     await page.getByLabel("6-digit code from your authenticator app").fill(generateTotp(secret!));
     await page.getByRole("button", { name: "Verify" }).click();
 
-    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page).toHaveURL(/\/admin$/);
   });
 
   test("an incorrect MFA code is rejected", async ({ page }) => {
@@ -75,9 +77,9 @@ test.describe.serial("MFA enrollment and verification", () => {
     }
 
     await expect(page.getByText("Incorrect code")).toBeVisible();
-    // Loosely matching /dashboard$/ against the full URL would also
-    // match the still-present ?next=/dashboard query string, so check
-    // the pathname specifically.
-    expect(new URL(page.url()).pathname).not.toBe("/dashboard");
+    // Loosely matching /admin$/ against the full URL would also match
+    // the still-present ?next=/admin query string, so check the
+    // pathname specifically.
+    expect(new URL(page.url()).pathname).not.toBe("/admin");
   });
 });

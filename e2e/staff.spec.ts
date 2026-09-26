@@ -1,26 +1,16 @@
 import { test, expect } from "@playwright/test";
-import { generateTotp } from "./utils/totp";
-import { resetMfaFactors } from "./utils/reset-mfa";
 
 const DEMO_PASSWORD = "demo-password-123!";
 const ADMIN_EMAIL = "admin@sunrise.test";
 
 test("a hospital admin invites staff and can deactivate/reactivate them", async ({ page }) => {
-  // Guarantee the enroll path regardless of a previous e2e run having
-  // already enrolled this account.
-  await resetMfaFactors(ADMIN_EMAIL);
-
   await page.goto("/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL);
   await page.getByLabel("Password").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  // First login for this seeded account in this spec run — HOSPITAL_ADMIN
-  // requires MFA (Phase 1c).
-  await expect(page).toHaveURL(/\/mfa\/setup/);
-  const secret = (await page.locator("code").textContent())?.trim();
-  await page.getByLabel("6-digit code").fill(generateTotp(secret!));
-  await page.getByRole("button", { name: "Confirm" }).click();
+  // HOSPITAL_ADMIN doesn't require MFA at the pilot stage (see
+  // src/lib/auth/mfa.ts), so sign-in goes straight to the dashboard.
   await expect(page).toHaveURL(/\/dashboard$/);
 
   await page.getByRole("link", { name: "Manage staff →" }).click();

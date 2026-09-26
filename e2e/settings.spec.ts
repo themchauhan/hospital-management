@@ -1,6 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { generateTotp } from "./utils/totp";
-import { resetMfaFactors } from "./utils/reset-mfa";
 import { cleanupTestPatients } from "./utils/cleanup-test-patients";
 import { createPatientViaUi } from "./utils/create-patient";
 
@@ -14,17 +12,13 @@ test.beforeAll(async () => {
 test("editing a visit type's document requirements changes the checklist for new visits only", async ({
   page,
 }) => {
-  await resetMfaFactors(ADMIN_EMAIL);
-
   await page.goto("/login");
   await page.getByLabel("Email").fill(ADMIN_EMAIL);
   await page.getByLabel("Password").fill(DEMO_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  await expect(page).toHaveURL(/\/mfa\/setup/);
-  const secret = (await page.locator("code").textContent())?.trim();
-  await page.getByLabel("6-digit code").fill(generateTotp(secret!));
-  await page.getByRole("button", { name: "Confirm" }).click();
+  // HOSPITAL_ADMIN doesn't require MFA at the pilot stage (see
+  // src/lib/auth/mfa.ts), so sign-in goes straight to the dashboard.
   await expect(page).toHaveURL(/\/dashboard$/);
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
