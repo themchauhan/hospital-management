@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/scan"];
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/scan", "/auth/confirm"];
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
