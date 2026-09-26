@@ -19,7 +19,7 @@
     "check:no-secrets": "node scripts/check-no-secrets.mjs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

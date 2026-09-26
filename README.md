@@ -7,8 +7,8 @@ product spec and [`CLAUDE.md`](CLAUDE.md) for the project's hard rules
 (multi-tenancy, RLS, no hard deletes, etc.).
 
 This repo is being built phase by phase — see
-[`docs/phases/`](docs/phases). Current phase: **7 — USG dashboard,
-workflow, and PC-PNDT tracking**.
+[`docs/phases/`](docs/phases). Current phase: **8 — super admin
+dashboard & manual subscriptions**.
 
 ## Tech stack
 
@@ -331,6 +331,43 @@ ON CONFLICT DO UPDATE`) — safe under concurrent registrations, see
   That is the actual safeguard: there is nothing structured to
   disclose because nothing structured is ever captured. This is a
   deliberate, load-bearing omission, not something left for later.
+
+## Super admin dashboard & subscriptions (Phase 8)
+
+- `/admin` (SUPER_ADMIN only) is a real console now: centre counts by
+  status, a full centre list, a **Create centre** flow (name/address/
+  modules + inviting that centre's first HOSPITAL_ADMIN — the exact
+  same service-role invite pattern `inviteStaff` already used, just
+  cross-tenant since the acting user has no hospital of their own),
+  and a per-centre page to change status/plan and record subscription
+  payments.
+- `hospitals`/`hospital_modules` had **zero write policies at all**
+  since Phase 1b, by design — writes only ever happened via seed
+  scripts/service-role. This phase adds the real path: a verified
+  platform admin (`is_platform_admin()`), using their own session, no
+  service-role needed except for the Admin API calls
+  (`inviteUserByEmail`) that no regular session can make regardless of
+  role.
+- **Recording a subscription payment reactivates the centre and
+  extends it** in the same action — a payment naturally un-suspends a
+  centre and pushes `subscription_ends_at` to the period's end,
+  rather than being two separate steps an admin has to remember to do
+  in the right order.
+- `requireActiveTenant()` (built in Phase 1b) already gates every
+  write action in the app against a SUSPENDED/EXPIRED hospital — this
+  phase's own audit confirmed every `requireRole(` call site already
+  wraps it, so a suspended centre's staff can still **view** existing
+  data but can't write, satisfying "data preserved, read-only" without
+  any new code.
+- **Known gap, deliberately deferred to Phase 9**: the check above is
+  enforced at the Next.js server-action layer, not at the RLS layer —
+  a `patients`/`visits`/etc. INSERT policy only checks `hospital_id`,
+  never `hospitals.status`, so a valid session for a suspended
+  hospital's staff could still write directly via PostgREST, bypassing
+  the app entirely. Closing that fully means threading a
+  hospital-active check through every tenant-owned table's write
+  policies — squarely a Phase 9 (security hardening) task, not this
+  one.
 
 ## Deployment notes
 

@@ -58,7 +58,49 @@ export interface Database {
           module: ModuleType;
         };
         Update: Partial<Database["public"]["Tables"]["hospital_modules"]["Row"]>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "hospital_modules_hospital_id_fkey";
+            columns: ["hospital_id"];
+            referencedRelation: "hospitals";
+            referencedColumns: ["id"];
+            isOneToOne: false;
+          },
+        ];
+      };
+      subscription_payments: {
+        Row: {
+          id: string;
+          hospital_id: string;
+          amount: number;
+          payment_date: string;
+          payment_method: string;
+          reference_number: string | null;
+          period_start: string;
+          period_end: string;
+          notes: string | null;
+          is_reversal: boolean;
+          recorded_by: string;
+          created_at: string;
+        };
+        // recorded_by defaults to auth.uid() at the database level.
+        Insert: Partial<Database["public"]["Tables"]["subscription_payments"]["Row"]> & {
+          hospital_id: string;
+          amount: number;
+          payment_method: string;
+          period_start: string;
+          period_end: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscription_payments"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "subscription_payments_hospital_id_fkey";
+            columns: ["hospital_id"];
+            referencedRelation: "hospitals";
+            referencedColumns: ["id"];
+            isOneToOne: false;
+          },
+        ];
       };
       profiles: {
         Row: {
