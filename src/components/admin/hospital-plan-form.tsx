@@ -35,6 +35,7 @@ export function HospitalPlanForm({
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-3">
       <input
+        type="text"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         disabled={pending}
